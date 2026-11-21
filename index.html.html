@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>大角咀社區資源地圖 - 卡通插圖互動版</title>
+  <title>角落共創 · 社區地圖 | 大角咀社區資源與人才共創平台</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- 載入 Supabase JS SDK 支援 GitHub Pages 外部部署雲端同步 -->
+  <!-- 載入 Supabase JS SDK 支援 GitHub Pages / Vercel 外部部署雲端同步 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
   <style>
@@ -51,7 +51,7 @@
     #map-viewport {
       touch-action: none;
       cursor: grab;
-      background-color: #a3e4d7; /* 維多利亞港/海旁卡通淺藍綠色 */
+      background-color: #a3e4d7;
       background-image: 
         radial-gradient(#76d7c4 2px, transparent 2px),
         radial-gradient(#76d7c4 2px, #a3e4d7 2px);
@@ -72,6 +72,11 @@
       0% { transform: translate(-50%, -100%) scale(0.2); opacity: 0; }
       70% { transform: translate(-50%, -100%) scale(1.15); opacity: 1; }
       100% { transform: translate(-50%, -100%) scale(1); opacity: 1; }
+    }
+
+    @keyframes modalPop {
+      0% { transform: scale(0.92); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
     }
 
     @keyframes floatBob {
@@ -150,68 +155,104 @@
 </head>
 <body class="h-screen w-screen flex flex-col">
 
-  <!-- 頂部導航列 -->
-  <header class="bg-[#ffde59] border-b-[3px] border-[#2d3436] px-3 py-2.5 md:px-5 flex flex-wrap items-center justify-between gap-2 z-30 shrink-0">
-    <div class="flex items-center gap-2.5">
-      <div class="w-10 h-10 bg-[#ff6b6b] rounded-2xl comic-box-sm flex items-center justify-center text-xl shadow-sm transform -rotate-3">
-        🏘️
+  <!-- 頂部導航列：角落共創 · 社區地圖 -->
+  <header class="bg-[#ffde59] border-b-[3px] border-[#2d3436] px-3 py-2 md:px-5 flex flex-wrap items-center justify-between gap-2 z-30 shrink-0">
+    <!-- 左側品牌與主分頁切換 -->
+    <div class="flex items-center gap-2.5 flex-wrap">
+      <div class="flex items-center gap-2">
+        <div class="w-10 h-10 bg-[#ff6b6b] rounded-2xl comic-box-sm flex items-center justify-center text-xl transform -rotate-3 shrink-0">
+          🏘️
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg md:text-xl font-black tracking-wide text-[#2d3436] leading-tight">
+            角落共創 · 社區地圖
+          </h1>
+          <p class="text-[11px] font-bold text-[#57606f] hidden lg:block">
+            Corner Co-Creation • 大角咀街坊空間與人才共創平台
+          </p>
+        </div>
       </div>
-      <div>
-        <h1 class="text-lg md:text-xl font-black tracking-wide text-[#2d3436] leading-tight">
-          大角咀社區資源地圖
-        </h1>
-        <p class="text-xs font-bold text-[#57606f] hidden sm:block">
-          Tai Kok Tsui Community Asset Map • 卡通探索版
-        </p>
-      </div>
+
+      <!-- 主視圖切換分頁（地圖 vs 人才資產庫） -->
+      <nav class="flex items-center bg-[#fef9e7] p-1 rounded-2xl border-2 border-[#2d3436] gap-1 ml-1">
+        <button 
+          id="nav-map-btn"
+          type="button"
+          class="px-2.5 py-1 rounded-xl text-xs sm:text-sm font-black bg-[#2d3436] text-white transition-all flex items-center gap-1"
+        >
+          <span>🗺️</span>
+          <span>社區地圖</span>
+        </button>
+        <button 
+          id="nav-talent-btn"
+          type="button"
+          class="px-2.5 py-1 rounded-xl text-xs sm:text-sm font-black text-[#2d3436] hover:bg-[#ffde59] transition-all flex items-center gap-1"
+        >
+          <span>🌟</span>
+          <span>人才資產庫</span>
+          <span id="talent-count-badge" class="bg-[#ff6b6b] text-white px-1.5 py-0.2 rounded-full text-[11px] border border-[#2d3436]">0</span>
+        </button>
+      </nav>
     </div>
 
-    <!-- 搜尋與篩選控制區 -->
-    <div class="flex items-center gap-2 flex-1 max-w-lg justify-end">
-      <div class="relative flex-1 max-w-[180px] sm:max-w-xs">
+    <!-- 右側登入登記與功能按鈕 -->
+    <div class="flex items-center gap-1.5 sm:gap-2 flex-1 justify-end">
+      <div class="relative hidden md:block max-w-[200px] flex-1">
         <input 
           type="text" 
           id="search-input" 
-          placeholder="搜尋街道或社區資產..." 
-          class="w-full bg-white rounded-xl px-3 py-1.5 pl-8 text-sm font-bold comic-box-sm focus:outline-none focus:bg-[#fffdf0]"
+          placeholder="搜尋街道、技能或資產..." 
+          class="w-full bg-white rounded-xl px-3 py-1.5 pl-8 text-xs font-bold comic-box-sm focus:outline-none focus:bg-[#fffdf0]"
         />
-        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm">🔍</span>
+        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs">🔍</span>
       </div>
+
+      <!-- 用戶登入 / 登記資產按鈕 -->
+      <button 
+        id="open-register-btn"
+        type="button"
+        class="comic-btn bg-[#ff6b6b] hover:bg-[#ee5253] text-white font-black px-3 py-1.5 rounded-xl text-xs sm:text-sm flex items-center gap-1.5 shrink-0"
+      >
+        <span id="user-badge-icon">👤</span>
+        <span id="user-badge-text">登入 / 登記資產</span>
+      </button>
 
       <button 
         id="share-map-btn"
+        type="button"
         title="複製並分享地圖網址"
-        class="comic-btn bg-[#ff9f43] hover:bg-[#f39c12] text-[#2d3436] font-black px-3 py-1.5 rounded-xl text-xs sm:text-sm flex items-center gap-1.5 shrink-0"
+        class="comic-btn bg-[#ff9f43] hover:bg-[#f39c12] text-[#2d3436] font-black px-2.5 py-1.5 rounded-xl text-xs sm:text-sm flex items-center gap-1 shrink-0"
       >
         <span>🔗</span>
-        <span class="hidden md:inline">分享網址</span>
+        <span class="hidden xl:inline">分享</span>
       </button>
 
       <button 
         id="toggle-list-btn"
-        class="comic-btn bg-[#4ecdc4] hover:bg-[#45b7af] text-[#2d3436] font-black px-3 py-1.5 rounded-xl text-xs sm:text-sm flex items-center gap-1.5 shrink-0"
+        type="button"
+        class="comic-btn bg-[#4ecdc4] hover:bg-[#45b7af] text-[#2d3436] font-black px-2.5 py-1.5 rounded-xl text-xs sm:text-sm flex items-center gap-1 shrink-0"
       >
         <span>📋</span>
-        <span class="hidden sm:inline">資源清單</span>
+        <span class="hidden lg:inline">地圖清單</span>
         <span id="asset-count-badge" class="bg-white px-1.5 py-0.2 rounded-full text-xs border border-[#2d3436]">0</span>
       </button>
     </div>
   </header>
 
-  <!-- 隱藏的複製網址輔助輸入框 -->
-  <input type="text" id="share-url-helper" class="sr-only" readonly />
-
-  <!-- 主內容區：地圖畫布 + 側邊資源面板 -->
-  <main class="flex-1 flex relative overflow-hidden">
+  <!-- ==================== 視圖 A：大角咀社區互動地圖 ==================== -->
+  <main id="map-view-container" class="flex-1 flex relative overflow-hidden">
     
     <!-- 互動地圖視口 -->
     <div id="map-viewport" class="flex-1 relative overflow-hidden">
       
-      <!-- 放置模式提示橫幅 -->
-      <div id="placement-banner" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-[#ff6b6b] text-white px-4 py-2 rounded-full comic-box-sm flex items-center gap-2 text-xs sm:text-sm font-black whitespace-nowrap">
-        <span id="placement-banner-icon">📍</span>
-        <span id="placement-banner-text">點擊地圖放置標誌</span>
-        <button id="cancel-place-btn" class="ml-2 bg-white text-[#2d3436] px-2 py-0.5 rounded-full text-xs border border-[#2d3436]">
+      <!-- 放置模式提示橫幅（支援一般印章與「用戶登記後標誌地點」） -->
+      <div id="placement-banner" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-[#ff6b6b] text-white px-4 py-2 rounded-full comic-box-sm flex items-center gap-2 text-xs sm:text-sm font-black max-w-[94vw]">
+        <span id="placement-banner-icon" class="shrink-0">📍</span>
+        <span id="placement-banner-text" class="truncate">點擊地圖放置標誌</span>
+        <button id="fallback-to-talent-btn" type="button" class="hidden ml-1 bg-[#ffde59] text-[#2d3436] px-2.5 py-0.5 rounded-full text-xs border border-[#2d3436] shrink-0">
+          改存至人才庫
+        </button>
+        <button id="cancel-place-btn" type="button" class="ml-1 bg-white text-[#2d3436] px-2 py-0.5 rounded-full text-xs border border-[#2d3436] shrink-0">
           取消
         </button>
       </div>
@@ -222,44 +263,33 @@
         <!-- 精確大角咀卡通向量地圖 SVG -->
         <svg id="tkt-map-svg" viewBox="0 0 2400 2100" width="2400" height="2100" xmlns="http://www.w3.org/2000/svg">
           <defs>
-            <!-- 草地公園紋理 -->
             <pattern id="park-dots" width="24" height="24" patternUnits="userSpaceOnUse">
               <circle cx="6" cy="6" r="2" fill="#58d68d" />
               <circle cx="18" cy="18" r="2.5" fill="#2ecc71" />
             </pattern>
-            <!-- 工廠/商業區斜線紋理 -->
             <pattern id="ind-hatch" width="16" height="16" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
               <line x1="0" y1="0" x2="0" y2="16" stroke="#d6eaf8" stroke-width="4" />
             </pattern>
           </defs>
 
-          <!-- ==================== 1. 陸地與填海區底色 ==================== -->
-          <!-- 海旁填海區 (奧運站/君匯港/匯豐中心一帶) -->
+          <!-- 1. 陸地與填海區底色 -->
           <path d="M 160,60 L 1060,60 L 1060,2040 L 180,2040 Q 120,1450 150,900 Q 170,400 160,60 Z" 
                 fill="#fef9e7" stroke="#2d3436" stroke-width="6" />
-          
-          <!-- 大角咀舊區與東側工業/住宅區陸地 -->
           <rect x="1060" y="60" width="1280" height="1980" fill="#fcf3cf" stroke="#2d3436" stroke-width="6" />
-
-          <!-- 海濱長廊綠化帶 (海輝道旁) -->
           <path d="M 140,80 Q 150,450 130,900 Q 100,1450 160,2020 L 210,2020 Q 150,1450 180,900 Q 200,450 190,80 Z" 
                 fill="#82e0aa" stroke="#2d3436" stroke-width="3" />
 
-          <!-- ==================== 2. 公園與大型社區綠地 ==================== -->
-          <!-- 樂群街公園 (Lok Kwan Street Park) - 位於福利街以南、惠安街以北、樂群街以西 -->
+          <!-- 2. 公園與大型社區綠地 -->
           <g id="park-lok-kwan">
             <rect x="650" y="340" width="230" height="240" rx="22" fill="#7dcea0" stroke="#2d3436" stroke-width="4" />
             <rect x="660" y="350" width="210" height="220" rx="16" fill="url(#park-dots)" />
-            <!-- 公園小徑與池塘 -->
             <path d="M 670,460 Q 750,410 860,460" fill="none" stroke="#f9e79f" stroke-width="10" stroke-linecap="round" />
             <ellipse cx="730" cy="420" rx="28" ry="18" fill="#5dade2" stroke="#2d3436" stroke-width="2.5" />
-            <!-- 卡通小樹 -->
             <circle cx="810" cy="395" r="14" fill="#27ae60" stroke="#2d3436" stroke-width="2.5" />
             <circle cx="830" cy="520" r="16" fill="#229954" stroke="#2d3436" stroke-width="2.5" />
             <circle cx="705" cy="525" r="14" fill="#27ae60" stroke="#2d3436" stroke-width="2.5" />
           </g>
 
-          <!-- 櫻桃街公園 / 奧運站旁綠化帶 -->
           <g id="park-cherry">
             <path d="M 1180,1590 L 1660,1590 Q 1780,1640 1850,1750 L 1220,1750 Z" fill="#7dcea0" stroke="#2d3436" stroke-width="4" />
             <circle cx="1320" cy="1660" r="16" fill="#27ae60" stroke="#2d3436" stroke-width="2.5" />
@@ -267,96 +297,69 @@
             <circle cx="1630" cy="1660" r="15" fill="#27ae60" stroke="#2d3436" stroke-width="2.5" />
           </g>
 
-          <!-- 詩歌舞街遊樂場 / 大角咀市政大樓旁休憩處 -->
           <rect x="1310" y="770" width="160" height="110" rx="16" fill="#82e0aa" stroke="#2d3436" stroke-width="3.5" />
           <circle cx="1360" cy="825" r="13" fill="#27ae60" stroke="#2d3436" stroke-width="2" />
           <circle cx="1420" cy="830" r="14" fill="#229954" stroke="#2d3436" stroke-width="2" />
 
-          <!-- ==================== 3. 卡通建築物區塊 (參考截圖真實位置) ==================== -->
-          
-          <!-- 港灣豪庭廣場 (Metro Harbour Plaza) - 聚魚道與福利街之間 -->
+          <!-- 3. 卡通建築物區塊 -->
           <g>
             <rect x="650" y="195" width="420" height="115" rx="16" fill="#f5b7b1" stroke="#2d3436" stroke-width="4" />
             <rect x="670" y="210" width="130" height="85" rx="10" fill="#fadbd8" stroke="#2d3436" stroke-width="2.5" />
             <rect x="820" y="210" width="230" height="85" rx="10" fill="#fadbd8" stroke="#2d3436" stroke-width="2.5" />
           </g>
 
-          <!-- 君匯港 (Harbour Green) - 深旺道以西、海輝道以東 -->
           <g>
             <path d="M 270,380 Q 370,340 460,390 L 460,1140 L 240,1140 Q 210,760 270,380 Z" 
                   fill="#d6eaf8" stroke="#2d3436" stroke-width="4" />
-            <!-- 君匯港各座卡通塔樓 -->
             <rect x="330" y="420" width="75" height="55" rx="10" fill="#85c1e9" stroke="#2d3436" stroke-width="3" />
             <rect x="330" y="530" width="75" height="55" rx="10" fill="#85c1e9" stroke="#2d3436" stroke-width="3" />
             <rect x="320" y="660" width="85" height="65" rx="10" fill="#85c1e9" stroke="#2d3436" stroke-width="3" />
             <rect x="275" y="810" width="85" height="65" rx="10" fill="#85c1e9" stroke="#2d3436" stroke-width="3" />
           </g>
 
-          <!-- 匯豐中心 (HSBC Centre) & 奧運站 (Olympic Station) - 博文街以南、深旺道與海景街之間 -->
           <g>
             <path d="M 300,1300 L 660,1300 L 660,1620 L 420,1680 L 300,1450 Z" 
                   fill="#d2b4de" stroke="#2d3436" stroke-width="4" />
             <rect x="360" y="1330" width="160" height="75" rx="12" fill="#bb8fce" stroke="#2d3436" stroke-width="3" />
-            <!-- 港鐵奧運站標誌 -->
             <circle cx="480" cy="1530" r="24" fill="#c0392b" stroke="#2d3436" stroke-width="3.5" />
             <text x="480" y="1538" text-anchor="middle" fill="#ffffff" font-weight="900" font-size="22">MTR</text>
           </g>
 
-          <!-- 奧海城二期 / 柏景灣 / 海富苑 (櫻桃街以南、海庭道/海泓道) -->
           <g>
             <rect x="360" y="1760" width="520" height="230" rx="20" fill="#f9e79f" stroke="#2d3436" stroke-width="4" />
             <rect x="940" y="1770" width="440" height="220" rx="20" fill="#aed6f1" stroke="#2d3436" stroke-width="4" />
             <rect x="1420" y="1780" width="450" height="210" rx="20" fill="#d5f5e3" stroke="#2d3436" stroke-width="4" />
           </g>
 
-          <!-- 大角咀中心舊區樓宇群 (萬安街、樂群街、合群街、角祥街、大政街一帶) -->
           <g fill="#fdebd0" stroke="#2d3436" stroke-width="3">
-            <!-- 福利街-惠安街之間 -->
             <rect x="915" y="350" width="65" height="220" rx="8" />
-            <rect x="1005" y="350" width="80" height="220" rx="8" /> <!-- 萬安大廈 -->
-            
-            <!-- 惠安街-美安街-中匯街之間 -->
+            <rect x="1005" y="350" width="80" height="220" rx="8" />
             <rect x="650" y="615" width="95" height="170" rx="8" />
             <rect x="775" y="615" width="105" height="170" rx="8" />
             <rect x="915" y="615" width="170" height="75" rx="8" />
             <rect x="915" y="715" width="170" height="70" rx="8" />
-
-            <!-- 中匯街-大全街之間 (中興樓、中和樓) -->
             <rect x="650" y="820" width="230" height="80" rx="8" />
             <rect x="915" y="820" width="170" height="80" rx="8" />
-
-            <!-- 大全街-埃華街之間 (大同新邨大英樓、大豐樓、大政街) -->
             <rect x="575" y="820" width="55" height="235" rx="8" />
             <rect x="650" y="935" width="140" height="120" rx="8" />
             <rect x="820" y="935" width="265" height="120" rx="8" />
-
-            <!-- 埃華街-利得街之間 (大同新邨大益樓、大方樓、千歲大廈) -->
             <rect x="575" y="1090" width="55" height="165" rx="8" />
             <rect x="650" y="1090" width="210" height="70" rx="8" />
             <rect x="885" y="1090" width="200" height="70" rx="8" />
             <rect x="650" y="1180" width="435" height="75" rx="8" />
-
-            <!-- 利得街-福澤街-嘉善街-博文街之間 (家慶樓、福祥樓、Hygge) -->
             <rect x="575" y="1290" width="55" height="130" rx="8" />
             <rect x="650" y="1290" width="435" height="65" rx="8" />
             <rect x="650" y="1380" width="435" height="65" rx="8" />
             <rect x="650" y="1470" width="435" height="75" rx="8" />
-
-            <!-- 博文街-富貴街之間 (富貴大廈) -->
             <rect x="680" y="1580" width="405" height="65" rx="8" />
             <rect x="680" y="1665" width="405" height="65" rx="8" />
           </g>
 
-          <!-- 大角咀東側建築群 (大角咀市政大樓、體育館、福星工廠大廈、香港旺角帝盛酒店) -->
           <g>
-            <!-- 大角咀市政大樓 & 體育館 -->
             <rect x="1310" y="550" width="220" height="190" rx="16" fill="#aed6f1" stroke="#2d3436" stroke-width="4" />
-            <!-- 福星工廠大廈 & 工業區 -->
             <rect x="1350" y="250" width="260" height="180" rx="14" fill="url(#ind-hatch)" stroke="#2d3436" stroke-width="3.5" />
             <rect x="1660" y="340" width="240" height="220" rx="14" fill="url(#ind-hatch)" stroke="#2d3436" stroke-width="3.5" />
-            <!-- 香港旺角帝盛酒店 (大角咀道與埃華街交界) -->
             <rect x="1145" y="920" width="135" height="110" rx="12" fill="#f5b7b1" stroke="#2d3436" stroke-width="3.5" />
-            <!-- 橡樹樓 / 金滿閣 / 晏架街周邊街區 -->
             <rect x="1310" y="930" width="160" height="180" rx="10" fill="#fdebd0" stroke="#2d3436" stroke-width="3" />
             <rect x="1505" y="930" width="165" height="180" rx="10" fill="#fdebd0" stroke="#2d3436" stroke-width="3" />
             <rect x="1705" y="930" width="165" height="180" rx="10" fill="#fdebd0" stroke="#2d3436" stroke-width="3" />
@@ -365,101 +368,55 @@
             <rect x="1705" y="1145" width="230" height="310" rx="10" fill="#fdebd0" stroke="#2d3436" stroke-width="3" />
           </g>
 
-          <!-- ==================== 4. 道路網絡 (外黑邊 + 內道路底色，呈現卡通手繪地圖質感) ==================== -->
-          <!-- 4A. 道路黑色外框層 -->
+          <!-- 4. 道路網絡 -->
           <g fill="none" stroke="#2d3436" stroke-linecap="round" stroke-linejoin="round">
-            <!-- 主要幹道/快速公路 (粗線 34px) -->
-            <!-- 大角咀道 (Tai Kok Tsui Rd) 南北主幹道 -->
             <path d="M 1110,120 L 1110,1450 Q 1110,1580 1230,1640 L 1450,1750" stroke-width="36" />
-            <!-- 深旺道 (Sham Mong Rd) -->
             <path d="M 480,140 Q 520,500 520,1150 Q 520,1450 410,1650 L 320,1760" stroke-width="34" />
-            <!-- 連翔道 (Lin Cheung Rd) -->
             <path d="M 190,1200 L 420,1750 L 540,2020" stroke-width="34" />
-            <!-- 海輝道 (Hoi Fai Rd) -->
             <path d="M 280,260 Q 190,580 180,950 Q 175,1120 220,1240" stroke-width="30" />
-            <!-- 櫻桃街 (Cherry St) 東西向主幹道 -->
             <path d="M 320,1730 L 1050,1540 L 2280,1490" stroke-width="36" />
-            <!-- 聚魚道 (Chui Yu Rd) -->
             <path d="M 280,260 L 540,175 L 1060,175 L 1110,230" stroke-width="30" />
-            <!-- 西九龍走廊 / 塘尾道 / 界限街 (北及東邊幹道) -->
             <path d="M 850,80 L 1110,230 L 1950,480 L 2320,620" stroke-width="34" />
             <path d="M 1920,120 L 2040,520 L 2120,1490" stroke-width="32" />
 
-            <!-- 次要街道 (中線 22px) -->
-            <!-- 福利街 (Fuk Lee St) -->
             <path d="M 520,325 L 1110,325" stroke-width="22" />
-            <!-- 樂群街 (Lok Kwan St) -->
             <path d="M 895,325 L 895,915" stroke-width="22" />
-            <!-- 萬安街 (Man On St) -->
             <path d="M 990,325 L 990,595" stroke-width="22" />
-            <!-- 惠安街 (Wai On St) -->
             <path d="M 520,595 L 1110,595" stroke-width="22" />
-            <!-- 美安街 (Mei On St) -->
             <path d="M 895,700 L 1110,700" stroke-width="20" />
-            <!-- 合群街 (Hop Kwan St) -->
             <path d="M 760,595 L 760,800" stroke-width="20" />
-            <!-- 中匯街 (Chung Wui St) -->
             <path d="M 520,800 L 1110,800" stroke-width="22" />
-            <!-- 大全街 (Tai Tsun St) -->
             <path d="M 520,915 L 1110,915" stroke-width="22" />
-            <!-- 大政街 (Tai Ching St) -->
             <path d="M 805,915 L 805,1070" stroke-width="18" />
-            <!-- 埃華街 (Ivy St) -->
             <path d="M 520,1070 L 1880,1125" stroke-width="24" />
-            <!-- 利得街 (Li Tak St) -->
             <path d="M 520,1165 L 1110,1165" stroke-width="20" />
-            <!-- 福澤街 (Fuk Chak St) -->
             <path d="M 520,1270 L 1110,1270" stroke-width="22" />
-            <!-- 嘉善街 (Ka Shin St) -->
             <path d="M 520,1365 L 1110,1365" stroke-width="20" />
-            <!-- 博文街 (Pok Man St) -->
             <path d="M 480,1455 L 1110,1455" stroke-width="24" />
-            <!-- 富貴街 (Fu Kwai St) -->
             <path d="M 660,1560 L 1110,1560" stroke-width="20" />
-            <!-- 角祥街 (Kok Cheung St) -->
             <path d="M 635,595 L 635,1455" stroke-width="22" />
-            <!-- 海景街 (Hoi King St) -->
             <path d="M 660,1455 L 660,1650" stroke-width="22" />
 
-            <!-- 大角咀道以東街道 -->
-            <!-- 詩歌舞街 (Sycamore St) -->
             <path d="M 1110,175 L 1680,175 L 1850,360" stroke-width="22" />
-            <!-- 福全街 (Fuk Tsun St) -->
             <path d="M 1110,450 L 1280,450 L 1680,720 L 2050,720" stroke-width="24" />
-            <!-- 洋松街 (Larch St) -->
             <path d="M 1180,250 L 1780,640" stroke-width="22" />
-            <!-- 楓樹街 (Maple St) -->
             <path d="M 1180,360 L 1420,175" stroke-width="20" />
-            <!-- 合桃街 (Walnut St) -->
             <path d="M 1540,480 L 1690,320" stroke-width="20" />
-            <!-- 必發道 (Bedford Rd) -->
             <path d="M 1350,240 L 1880,580" stroke-width="22" />
-            <!-- 菩提街 (Bodhi St) -->
             <path d="M 1540,630 L 1720,460" stroke-width="18" />
-            <!-- 晏架街 (Anchor St) -->
             <path d="M 1110,1280 L 1950,1320" stroke-width="22" />
-            <!-- 榆樹街 (Elm St) -->
             <path d="M 1290,915 L 1290,1290" stroke-width="20" />
-            <!-- 櫸樹街 (Beech St) -->
             <path d="M 1490,740 L 1490,1295 L 1430,1510" stroke-width="22" />
-            <!-- 杉樹街 (Pine St) -->
             <path d="M 1685,720 L 1685,1305" stroke-width="22" />
-            <!-- 鐵樹街 (Tit Shu St) -->
             <path d="M 1660,1305 L 1610,1500" stroke-width="20" />
-            <!-- 橡樹街 (Oak St) -->
             <path d="M 1830,1125 L 1760,1495" stroke-width="22" />
-            <!-- 槐樹街 (Ash St) -->
             <path d="M 1930,960 L 1890,1125" stroke-width="20" />
-            <!-- 棕樹街 (Palm St) -->
             <path d="M 2030,1320 L 2070,1490" stroke-width="20" />
-            <!-- 海庭道 (Hoi Ting Rd) & 海泓道 (Hoi Wang Rd) -->
             <path d="M 900,1760 L 900,2020" stroke-width="24" />
             <path d="M 900,1850 Q 1250,1780 1550,1980" stroke-width="22" />
           </g>
 
-          <!-- 4B. 道路內部填充層 (幹道為卡通草綠色，一般街道為純白色) -->
           <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <!-- 綠色主幹道 -->
             <g stroke="#58d68d">
               <path d="M 1110,120 L 1110,1450 Q 1110,1580 1230,1640 L 1450,1750" stroke-width="28" />
               <path d="M 480,140 Q 520,500 520,1150 Q 520,1450 410,1650 L 320,1760" stroke-width="26" />
@@ -471,7 +428,6 @@
               <path d="M 1920,120 L 2040,520 L 2120,1490" stroke-width="24" />
             </g>
 
-            <!-- 白色社區街道 -->
             <g stroke="#ffffff">
               <path d="M 520,325 L 1110,325" stroke-width="15" />
               <path d="M 895,325 L 895,915" stroke-width="15" />
@@ -490,7 +446,6 @@
               <path d="M 660,1560 L 1110,1560" stroke-width="13" />
               <path d="M 635,595 L 635,1455" stroke-width="15" />
               <path d="M 660,1455 L 660,1650" stroke-width="15" />
-              <!-- 東側街道 -->
               <path d="M 1110,175 L 1680,175 L 1850,360" stroke-width="15" />
               <path d="M 1110,450 L 1280,450 L 1680,720 L 2050,720" stroke-width="17" />
               <path d="M 1180,250 L 1780,640" stroke-width="15" />
@@ -510,7 +465,6 @@
               <path d="M 900,1850 Q 1250,1780 1550,1980" stroke-width="15" />
             </g>
 
-            <!-- 主幹道中央黃色虛線 -->
             <g stroke="#f7dc6f" stroke-width="3" stroke-dasharray="12,12">
               <path d="M 1110,120 L 1110,1450 Q 1110,1580 1230,1640 L 1450,1750" />
               <path d="M 480,140 Q 520,500 520,1150 Q 520,1450 410,1650 L 320,1760" />
@@ -518,9 +472,8 @@
             </g>
           </g>
 
-          <!-- ==================== 5. 精確街道名稱與地標文字標籤 ==================== -->
+          <!-- 5. 精確街道名稱與地標文字標籤 -->
           <g text-anchor="middle">
-            <!-- 主幹道名稱 -->
             <text x="1110" y="640" class="street-label-highway" font-size="20" writing-mode="tb">大角咀道</text>
             <text x="1110" y="1220" class="street-label-highway" font-size="20" writing-mode="tb">大角咀道</text>
             <text x="515" y="720" class="street-label-highway" font-size="18" writing-mode="tb">深旺道 Sham Mong Rd</text>
@@ -531,7 +484,6 @@
             <text x="740" y="1626" class="street-label-highway" font-size="19" transform="rotate(-14, 740, 1626)">櫻桃街</text>
             <text x="2075" y="960" class="street-label-highway" font-size="19" writing-mode="tb">塘尾道</text>
 
-            <!-- 大角咀中心區橫向街道 -->
             <text x="820" y="331" class="street-label" font-size="17">福利街</text>
             <text x="820" y="601" class="street-label" font-size="17">惠安街</text>
             <text x="1000" y="706" class="street-label" font-size="16">美安街</text>
@@ -544,7 +496,6 @@
             <text x="820" y="1461" class="street-label" font-size="18">博文街</text>
             <text x="880" y="1566" class="street-label" font-size="16">富貴街</text>
 
-            <!-- 大角咀中心區縱向街道 -->
             <text x="895" y="540" class="street-label" font-size="16" writing-mode="tb">樂群街</text>
             <text x="990" y="460" class="street-label" font-size="16" writing-mode="tb">萬安街</text>
             <text x="760" y="700" class="street-label" font-size="15" writing-mode="tb">合群街</text>
@@ -552,7 +503,6 @@
             <text x="805" y="990" class="street-label" font-size="15" writing-mode="tb">大政街</text>
             <text x="660" y="1555" class="street-label" font-size="16" writing-mode="tb">海景街</text>
 
-            <!-- 大角咀東側街道 -->
             <text x="1420" y="181" class="street-label" font-size="17">詩歌舞街</text>
             <text x="1480" y="590" class="street-label" font-size="18" transform="rotate(34, 1480, 590)">福全街</text>
             <text x="1420" y="410" class="street-label" font-size="17" transform="rotate(33, 1420, 410)">洋松街</text>
@@ -572,7 +522,6 @@
             <text x="900" y="1900" class="street-label" font-size="17" writing-mode="tb">海泓道</text>
             <text x="1240" y="1860" class="street-label" font-size="17" transform="rotate(10, 1240, 1860)">海庭道</text>
 
-            <!-- 地標文字 -->
             <text x="765" y="485" class="landmark-label" font-size="17">🌳 樂群街公園</text>
             <text x="860" y="255" class="landmark-label" font-size="17">🛍️ 港灣豪庭廣場</text>
             <text x="350" y="615" class="landmark-label" font-size="17">🏢 君匯港</text>
@@ -595,13 +544,13 @@
       <!-- 左上角快捷導航與縮放控制 -->
       <div class="absolute top-3 left-3 z-20 flex flex-col gap-2">
         <div class="bg-white/95 rounded-2xl comic-box-sm p-1.5 flex flex-col gap-1">
-          <button id="zoom-in-btn" title="放大地圖" class="w-9 h-9 rounded-xl bg-[#fef9e7] hover:bg-[#ffde59] border-2 border-[#2d3436] font-black text-lg flex items-center justify-center">
+          <button id="zoom-in-btn" type="button" title="放大地圖" class="w-9 h-9 rounded-xl bg-[#fef9e7] hover:bg-[#ffde59] border-2 border-[#2d3436] font-black text-lg flex items-center justify-center">
             ＋
           </button>
-          <button id="zoom-out-btn" title="縮小地圖" class="w-9 h-9 rounded-xl bg-[#fef9e7] hover:bg-[#ffde59] border-2 border-[#2d3436] font-black text-lg flex items-center justify-center">
+          <button id="zoom-out-btn" type="button" title="縮小地圖" class="w-9 h-9 rounded-xl bg-[#fef9e7] hover:bg-[#ffde59] border-2 border-[#2d3436] font-black text-lg flex items-center justify-center">
             －
           </button>
-          <button id="reset-view-btn" title="回到大角咀中心" class="w-9 h-9 rounded-xl bg-[#a3e4d7] hover:bg-[#76d7c4] border-2 border-[#2d3436] text-base flex items-center justify-center">
+          <button id="reset-view-btn" type="button" title="回到大角咀中心" class="w-9 h-9 rounded-xl bg-[#a3e4d7] hover:bg-[#76d7c4] border-2 border-[#2d3436] text-base flex items-center justify-center">
             🎯
           </button>
         </div>
@@ -609,10 +558,10 @@
         <!-- 快捷區域跳轉 -->
         <div class="bg-white/95 rounded-2xl comic-box-sm p-1.5 hidden sm:flex flex-col gap-1 text-xs font-black">
           <span class="px-1.5 py-0.5 text-[10px] text-gray-500">快速跳轉</span>
-          <button data-jump="895,460" class="jump-btn text-left px-2 py-1 rounded-lg hover:bg-[#ffde59]">🌳 樂群街公園</button>
-          <button data-jump="1110,920" class="jump-btn text-left px-2 py-1 rounded-lg hover:bg-[#ffde59]">🍜 大全街/埃華街</button>
-          <button data-jump="1420,630" class="jump-btn text-left px-2 py-1 rounded-lg hover:bg-[#ffde59]">🏛️ 市政大樓</button>
-          <button data-jump="520,1520" class="jump-btn text-left px-2 py-1 rounded-lg hover:bg-[#ffde59]">🚇 奧運站/奧海城</button>
+          <button type="button" data-jump="895,460" class="jump-btn text-left px-2 py-1 rounded-lg hover:bg-[#ffde59]">🌳 樂群街公園</button>
+          <button type="button" data-jump="1110,920" class="jump-btn text-left px-2 py-1 rounded-lg hover:bg-[#ffde59]">🍜 大全街/埃華街</button>
+          <button type="button" data-jump="1420,630" class="jump-btn text-left px-2 py-1 rounded-lg hover:bg-[#ffde59]">🏛️ 市政大樓</button>
+          <button type="button" data-jump="520,1520" class="jump-btn text-left px-2 py-1 rounded-lg hover:bg-[#ffde59]">🚇 奧運站/奧海城</button>
         </div>
       </div>
 
@@ -623,7 +572,7 @@
             <span class="text-xs font-black text-[#2d3436] flex items-center gap-1">
               <span>🎨 選擇標誌印章，點擊地圖新增社區資產：</span>
             </span>
-            <span class="text-[11px] font-bold text-[#e17055] hidden sm:inline">或直接雙擊地圖任意處</span>
+            <span class="text-[11px] font-bold text-[#e17055] hidden sm:inline">或點擊右上角「登入 / 登記資產」分享技能</span>
           </div>
           
           <div id="stamp-palette" class="flex items-center gap-2 overflow-x-auto pb-1">
@@ -637,38 +586,265 @@
     <aside id="asset-sidebar" class="hidden w-full sm:w-80 md:w-96 bg-[#fffdf7] border-l-[3px] border-[#2d3436] flex-col z-30 h-full shrink-0">
       <div class="p-3 bg-[#4ecdc4] border-b-[3px] border-[#2d3436] flex items-center justify-between">
         <h2 class="font-black text-base text-[#2d3436] flex items-center gap-1.5">
-          <span>🗂️ 已標記的社區資源</span>
+          <span>🗂️ 地圖已標記資產</span>
         </h2>
-        <button id="close-sidebar-btn" class="w-7 h-7 bg-white rounded-lg border-2 border-[#2d3436] font-black text-sm flex items-center justify-center hover:bg-gray-100">
+        <button id="close-sidebar-btn" type="button" class="w-7 h-7 bg-white rounded-lg border-2 border-[#2d3436] font-black text-sm flex items-center justify-center hover:bg-gray-100">
           ✕
         </button>
       </div>
 
-      <!-- 分類篩選膠囊 -->
       <div id="category-filters" class="p-2.5 bg-[#fef9e7] border-b-2 border-[#2d3436] flex gap-1.5 overflow-x-auto shrink-0">
         <!-- JS 渲染 -->
       </div>
 
-      <!-- 資源列表 -->
       <div id="asset-list-container" class="flex-1 overflow-y-auto p-3 space-y-2.5">
         <!-- JS 渲染 -->
       </div>
     </aside>
   </main>
 
-  <!-- 新增 / 編輯社區資產彈窗 (Modal) -->
-  <div id="asset-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
-    <div class="bg-[#fffdf7] w-full max-w-md rounded-3xl comic-box overflow-hidden animate-[popIn_0.2s_ease-out]">
-      <div id="modal-header" class="bg-[#ffde59] px-5 py-3.5 border-b-[3px] border-[#2d3436] flex items-center justify-between">
-        <h3 id="modal-title" class="text-lg font-black text-[#2d3436] flex items-center gap-2">
-          <span>📍 新增社區資源標誌</span>
+  <!-- ==================== 視圖 B：人才資產庫頁面 ==================== -->
+  <section id="talent-view-container" class="hidden flex-1 overflow-y-auto bg-[#fdf6e3] p-4 md:p-8">
+    <div class="max-w-6xl mx-auto space-y-6 pb-12">
+      
+      <!-- 人才資產庫頂部橫幅 -->
+      <div class="bg-[#a3e4d7] rounded-3xl comic-box p-5 md:p-7 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="space-y-1.5">
+          <div class="inline-flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border-2 border-[#2d3436] text-xs font-black">
+            <span>🌟 角落共創 · 社區無形資產庫</span>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-black text-[#2d3436]">
+            大角咀街坊技能與社區組織人才庫
+          </h2>
+          <p class="text-xs sm:text-sm font-bold text-[#2d3436]/80 max-w-2xl leading-relaxed">
+            有些珍貴的社區力量不一定有固定店舖！這裡匯集了大角咀個人街坊的專長技能、義工時間與地區組織可借出的物資與服務。
+          </p>
+        </div>
+
+        <button 
+          type="button"
+          id="talent-page-register-btn"
+          class="comic-btn bg-[#ffde59] hover:bg-[#f9ca24] text-[#2d3436] font-black px-5 py-3 rounded-2xl text-sm flex items-center gap-2 shrink-0"
+        >
+          <span class="text-lg">➕</span>
+          <span>登記我的技能 / 組織資產</span>
+        </button>
+      </div>
+
+      <!-- 搜尋與身份篩選列 -->
+      <div class="bg-white rounded-2xl comic-box-sm p-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2 flex-wrap" id="talent-filter-group">
+          <button type="button" data-talent-filter="all" class="talent-filter-btn px-3 py-1.5 rounded-xl border-2 border-[#2d3436] text-xs font-black bg-[#ffde59]">
+            全部共創者
+          </button>
+          <button type="button" data-talent-filter="individual" class="talent-filter-btn px-3 py-1.5 rounded-xl border-2 border-[#2d3436] text-xs font-black bg-white">
+            🙋 個人街坊
+          </button>
+          <button type="button" data-talent-filter="organization" class="talent-filter-btn px-3 py-1.5 rounded-xl border-2 border-[#2d3436] text-xs font-black bg-white">
+            🏢 社區組織
+          </button>
+        </div>
+
+        <div class="relative flex-1 max-w-md">
+          <input 
+            type="text" 
+            id="talent-search-input" 
+            placeholder="搜尋姓名、技能專長（如：水電維修、設計、場地）..." 
+            class="w-full bg-[#fef9e7] rounded-xl px-3.5 py-2 pl-9 text-xs sm:text-sm font-bold border-2 border-[#2d3436] focus:outline-none focus:bg-white"
+          />
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm">🔍</span>
+        </div>
+      </div>
+
+      <!-- 人才與組織卡片網格 -->
+      <div id="talent-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- 由 JS 動態渲染 -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 彈窗 1：用戶登入與資產登記精靈 (個人 / 組織) ==================== -->
+  <div id="register-modal" class="hidden fixed inset-0 bg-black/55 backdrop-blur-[2px] z-50 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-[#fffdf7] w-full max-w-lg rounded-3xl comic-box overflow-hidden animate-[modalPop_0.2s_ease-out] max-h-[92vh] flex flex-col">
+      <div class="bg-[#ff6b6b] px-5 py-3.5 border-b-[3px] border-[#2d3436] flex items-center justify-between shrink-0">
+        <h3 class="text-base sm:text-lg font-black text-white flex items-center gap-2">
+          <span>🤝 角落共創 · 登入與社區資產登記</span>
         </h3>
-        <button id="close-modal-btn" class="w-8 h-8 bg-white rounded-xl border-2 border-[#2d3436] font-black hover:bg-gray-100">
+        <button id="close-register-modal-btn" type="button" class="w-8 h-8 bg-white text-[#2d3436] rounded-xl border-2 border-[#2d3436] font-black hover:bg-gray-100">
           ✕
         </button>
       </div>
 
-      <form id="asset-form" class="p-5 space-y-4">
+      <div class="p-4 sm:p-5 overflow-y-auto space-y-4">
+        <!-- 步驟 1：選擇身份（個人 / 組織） -->
+        <div>
+          <label class="block text-xs font-black text-[#2d3436] mb-2">第一步：請選擇您的參與身份 *</label>
+          <div class="grid grid-cols-2 gap-3">
+            <button 
+              type="button" 
+              id="role-individual-btn"
+              class="role-select-btn p-3 rounded-2xl border-[2.5px] border-[#2d3436] bg-[#ffde59] shadow-[3px_3px_0px_#2d3436] flex items-center gap-2.5 text-left transition-all"
+            >
+              <span class="text-2xl">🙋</span>
+              <div>
+                <div class="font-black text-sm text-[#2d3436]">個人街坊</div>
+                <div class="text-[11px] font-bold text-gray-700">分享個人技能、時間與專長</div>
+              </div>
+            </button>
+
+            <button 
+              type="button" 
+              id="role-org-btn"
+              class="role-select-btn p-3 rounded-2xl border-[2.5px] border-[#2d3436] bg-white opacity-80 hover:opacity-100 flex items-center gap-2.5 text-left transition-all"
+            >
+              <span class="text-2xl">🏢</span>
+              <div>
+                <div class="font-black text-sm text-[#2d3436]">社區組織</div>
+                <div class="text-[11px] font-bold text-gray-700">商戶、社福機構、街坊團體</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- 基本資料與技能表單 -->
+        <form id="register-form" class="space-y-3.5">
+          <!-- 姓名 / 組織名稱 -->
+          <div>
+            <label for="reg-name" id="reg-name-label" class="block text-xs font-black text-[#2d3436] mb-1">
+              第二步：您的姓名 / 稱呼 *
+            </label>
+            <input 
+              type="text" 
+              id="reg-name" 
+              required 
+              placeholder="例如：陳大文 / 埃華街維修小隊" 
+              class="w-full bg-white rounded-xl px-3.5 py-2 text-sm font-bold comic-box-sm focus:outline-none focus:bg-[#fffdf0]"
+            />
+          </div>
+
+          <!-- 個人基本資料（性別、年齡，選擇個人時顯示） -->
+          <div id="individual-extra-fields" class="grid grid-cols-2 gap-3 bg-[#fef9e7] p-3 rounded-2xl border-2 border-[#2d3436]">
+            <div>
+              <label for="reg-gender" class="block text-xs font-black text-[#2d3436] mb-1">性別（選填）</label>
+              <select id="reg-gender" class="w-full bg-white rounded-xl px-3 py-2 text-xs sm:text-sm font-bold border-2 border-[#2d3436] focus:outline-none">
+                <option value="不透露">不透露</option>
+                <option value="女">女</option>
+                <option value="男">男</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+            <div>
+              <label for="reg-age" class="block text-xs font-black text-[#2d3436] mb-1">年齡 / 年齡層（選填）</label>
+              <input 
+                type="text" 
+                id="reg-age" 
+                placeholder="例如：28 或 30-39歲" 
+                class="w-full bg-white rounded-xl px-3 py-1.5 text-xs sm:text-sm font-bold border-2 border-[#2d3436] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <!-- 聯絡方法（電話 + 網站） -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="reg-phone" class="block text-xs font-black text-[#2d3436] mb-1">聯絡電話 / WhatsApp *</label>
+              <input 
+                type="tel" 
+                id="reg-phone" 
+                required
+                placeholder="例如：9123 4567" 
+                class="w-full bg-white rounded-xl px-3.5 py-2 text-sm font-bold comic-box-sm focus:outline-none focus:bg-[#fffdf0]"
+              />
+            </div>
+            <div>
+              <label for="reg-website" class="block text-xs font-black text-[#2d3436] mb-1">網站 / 社交專頁（選填）</label>
+              <input 
+                type="text" 
+                id="reg-website" 
+                placeholder="例如：instagram.com/tkt_craft" 
+                class="w-full bg-white rounded-xl px-3.5 py-2 text-sm font-bold comic-box-sm focus:outline-none focus:bg-[#fffdf0]"
+              />
+            </div>
+          </div>
+
+          <!-- 資產類別選擇 -->
+          <div>
+            <label for="reg-category" class="block text-xs font-black text-[#2d3436] mb-1">資產 / 技能領域</label>
+            <select id="reg-category" class="w-full bg-white rounded-xl px-3.5 py-2 text-sm font-bold comic-box-sm focus:outline-none">
+              <option value="community">🏠 社區互助 / 空間借用</option>
+              <option value="edu">📚 技能教學 / 知識分享</option>
+              <option value="food">🍜 飲食共享 / 社區廚房</option>
+              <option value="medical">🏥 健康護理 / 情緒支援</option>
+              <option value="recycle">♻️ 環保升級 / 物品維修</option>
+              <option value="shop">🏪 友善商戶 / 物資贊助</option>
+              <option value="park">🌳 康樂活動 / 導賞體驗</option>
+              <option value="transport">🚌 義載接送 / 跑腿支援</option>
+            </select>
+          </div>
+
+          <!-- 可提供的資產 / 技能 -->
+          <div>
+            <label for="reg-asset-title" class="block text-xs font-black text-[#2d3436] mb-1">第三步：可提供的資產 / 技能名稱 *</label>
+            <input 
+              type="text" 
+              id="reg-asset-title" 
+              required 
+              placeholder="例如：免費家居小家電維修、週六社區繪本共讀..." 
+              class="w-full bg-white rounded-xl px-3.5 py-2 text-sm font-bold comic-box-sm focus:outline-none focus:bg-[#fffdf0]"
+            />
+          </div>
+
+          <div>
+            <label for="reg-asset-desc" class="block text-xs font-black text-[#2d3436] mb-1">詳細說明（可提供時間、條件或簡介）</label>
+            <textarea 
+              id="reg-asset-desc" 
+              rows="2" 
+              placeholder="請簡單介紹您能如何與大角咀街坊共創..." 
+              class="w-full bg-white rounded-xl px-3.5 py-2 text-sm font-bold comic-box-sm focus:outline-none focus:bg-[#fffdf0]"
+            ></textarea>
+          </div>
+
+          <!-- 第四步：選擇發佈方式（標誌地圖地點 vs 人才資產庫） -->
+          <div class="bg-[#e8f8f5] border-2 border-[#2d3436] rounded-2xl p-3 space-y-2.5">
+            <p class="text-xs font-black text-[#2d3436]">第四步：選擇資產呈現方式</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button 
+                type="submit" 
+                data-submit-target="map"
+                class="submit-reg-btn comic-btn bg-[#2ecc71] hover:bg-[#27ae60] text-white font-black px-3 py-2.5 rounded-xl text-xs flex flex-col items-center justify-center gap-0.5 text-center"
+              >
+                <span class="text-sm">📍 在地圖上標誌地點</span>
+                <span class="text-[10px] opacity-95 font-bold">有固定空間／聚腳點，登入後點選地圖位置</span>
+              </button>
+
+              <button 
+                type="submit" 
+                data-submit-target="talent"
+                class="submit-reg-btn comic-btn bg-[#48dbfb] hover:bg-[#0abde3] text-[#2d3436] font-black px-3 py-2.5 rounded-xl text-xs flex flex-col items-center justify-center gap-0.5 text-center"
+              >
+                <span class="text-sm">🌟 加入人才資產庫</span>
+                <span class="text-[10px] opacity-90 font-bold">無固定地點（流動技能／服務），顯示於人才庫</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 彈窗 2：新增 / 編輯地圖標誌 (Modal) ==================== -->
+  <div id="asset-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
+    <div class="bg-[#fffdf7] w-full max-w-md rounded-3xl comic-box overflow-hidden animate-[modalPop_0.2s_ease-out] max-h-[90vh] flex flex-col">
+      <div id="modal-header" class="bg-[#ffde59] px-5 py-3.5 border-b-[3px] border-[#2d3436] flex items-center justify-between shrink-0">
+        <h3 id="modal-title" class="text-lg font-black text-[#2d3436] flex items-center gap-2">
+          <span>📍 新增社區資源標誌</span>
+        </h3>
+        <button id="close-modal-btn" type="button" class="w-8 h-8 bg-white rounded-xl border-2 border-[#2d3436] font-black hover:bg-gray-100">
+          ✕
+        </button>
+      </div>
+
+      <form id="asset-form" class="p-5 space-y-3.5 overflow-y-auto">
         <input type="hidden" id="form-asset-id" />
         <input type="hidden" id="form-x" />
         <input type="hidden" id="form-y" />
@@ -693,7 +869,7 @@
           />
         </div>
 
-        <!-- 所在街道 (自動偵測並允許微調) -->
+        <!-- 所在街道 -->
         <div>
           <label for="form-street" class="block text-xs font-black text-[#2d3436] mb-1">3. 鄰近街道 / 位置</label>
           <input 
@@ -704,25 +880,44 @@
           />
         </div>
 
-        <!-- 資源描述與開放時間 -->
+        <!-- 資源描述 -->
         <div>
           <label for="form-desc" class="block text-xs font-black text-[#2d3436] mb-1">4. 資源介紹與服務詳情</label>
           <textarea 
             id="form-desc" 
-            rows="3" 
+            rows="2" 
             placeholder="描述這個地方提供的社區資源、服務對象或特色..." 
             class="w-full bg-white rounded-xl px-3.5 py-2 text-sm font-bold comic-box-sm focus:outline-none focus:bg-[#fffdf0]"
           ></textarea>
         </div>
 
+        <!-- 提供者與聯絡方式（若有登記資料則顯示） -->
+        <div class="bg-[#fef9e7] p-3 rounded-2xl border-2 border-[#2d3436] space-y-2">
+          <p class="text-[11px] font-black text-[#d35400]">👤 提供者與聯絡資訊（選填）</p>
+          <div class="grid grid-cols-2 gap-2">
+            <input 
+              type="text" 
+              id="form-provider" 
+              placeholder="提供者姓名/組織" 
+              class="w-full bg-white rounded-xl px-2.5 py-1.5 text-xs font-bold border-2 border-[#2d3436]"
+            />
+            <input 
+              type="text" 
+              id="form-contact" 
+              placeholder="聯絡電話或網站" 
+              class="w-full bg-white rounded-xl px-2.5 py-1.5 text-xs font-bold border-2 border-[#2d3436]"
+            />
+          </div>
+        </div>
+
         <!-- 操作按鈕 -->
-        <div class="flex items-center justify-between pt-2 gap-2">
+        <div class="flex items-center justify-between pt-1 gap-2">
           <button 
             type="button" 
             id="delete-asset-btn" 
             class="hidden comic-btn bg-[#ff6b6b] text-white font-black px-4 py-2 rounded-xl text-sm"
           >
-            🗑️ 刪除標誌
+            🗑️ 刪除
           </button>
           <div class="flex items-center gap-2 ml-auto">
             <button 
@@ -744,18 +939,14 @@
     </div>
   </div>
 
-  <!-- 輕量提示氣泡 (Toast) -->
-  <div id="toast-msg" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-[#2d3436] text-white font-bold px-4 py-2 rounded-full text-xs shadow-lg">
-  </div>
-
-  <!-- 分享地圖網址彈窗 -->
+  <!-- ==================== 彈窗 3：分享地圖網址彈窗 ==================== -->
   <div id="share-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
-    <div class="bg-[#fffdf7] w-full max-w-md rounded-3xl comic-box overflow-hidden animate-[popIn_0.2s_ease-out]">
+    <div class="bg-[#fffdf7] w-full max-w-md rounded-3xl comic-box overflow-hidden animate-[modalPop_0.2s_ease-out]">
       <div class="bg-[#ff9f43] px-5 py-3.5 border-b-[3px] border-[#2d3436] flex items-center justify-between">
         <h3 class="text-lg font-black text-[#2d3436] flex items-center gap-2">
-          <span>🔗 分享大角咀社區地圖</span>
+          <span>🔗 分享角落共創 · 社區地圖</span>
         </h3>
-        <button id="close-share-modal-btn" class="w-8 h-8 bg-white rounded-xl border-2 border-[#2d3436] font-black hover:bg-gray-100">
+        <button id="close-share-modal-btn" type="button" class="w-8 h-8 bg-white rounded-xl border-2 border-[#2d3436] font-black hover:bg-gray-100">
           ✕
         </button>
       </div>
@@ -764,12 +955,12 @@
           <span id="sync-status-icon" class="text-xl">☁️</span>
           <div class="text-xs font-bold text-[#2d3436]">
             <p id="sync-status-title" class="font-black text-[#117864]">儲存模式偵測中...</p>
-            <p id="sync-status-desc" class="mt-0.5 text-gray-600">支援 GitHub Pages 部署與 Supabase 雲端多人同步。</p>
+            <p id="sync-status-desc" class="mt-0.5 text-gray-600">支援 GitHub Pages / Vercel 部署與 Supabase 雲端多人同步。</p>
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-black text-[#2d3436] mb-1.5">目前地圖網址</label>
+          <label class="block text-xs font-black text-[#2d3436] mb-1.5">目前平台網址</label>
           <div class="flex gap-2">
             <input 
               type="text" 
@@ -786,14 +977,12 @@
             </button>
           </div>
         </div>
-
-        <div class="bg-[#fef9e7] border-2 border-[#2d3436] rounded-2xl p-3 text-xs space-y-1.5">
-          <p class="font-black text-[#2d3436]">🚀 GitHub / Vercel + Supabase 接駁提示：</p>
-          <p class="font-medium text-gray-700">1. 可直接上傳至 GitHub 啟用 <span class="font-black text-[#d35400]">GitHub Pages</span>，或匯入 <span class="font-black text-[#d35400]">Vercel</span> 零設定自動部署。</p>
-          <p class="font-medium text-gray-700">2. 於程式碼頂部的 <code class="bg-white px-1 py-0.5 rounded border border-[#2d3436] font-bold">SUPABASE_CONFIG</code> 填入 URL 與 Anon Key，即可跨裝置雲端同步。</p>
-        </div>
       </div>
     </div>
+  </div>
+
+  <!-- 輕量提示氣泡 (Toast) -->
+  <div id="toast-msg" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-[#2d3436] text-white font-bold px-4 py-2 rounded-full text-xs shadow-lg text-center max-w-[90vw]">
   </div>
 
   <script>
@@ -805,28 +994,20 @@
      * 1. 部署相容性：本單頁應用 (SPA) 零建置依賴，可直接部署於 GitHub Pages 或 Vercel 靜態託管。
      * 2. 雲端接駁方式：請直接將下方 `SUPABASE_CONFIG` 的 `url` 與 `anonKey` 替換為真實專案金鑰。
      *    若透過 Vercel 建置腳本注入環境變數，亦可賦值 `window.__ENV__ = { SUPABASE_URL, SUPABASE_ANON_KEY }`。
-     * 3. 資料庫結構 (Table: `tkt_assets`)：
-     *    - id (text, primary key)
-     *    - type (text, not null)
-     *    - name (text, not null)
-     *    - street (text, not null)
-     *    - "desc" (text, default '')
-     *    - x (numeric, not null)
-     *    - y (numeric, not null)
-     *    - updated_at (bigint, not null)
+     * 3. 資料庫結構：
+     *    - 地圖標誌表 (`tkt_assets`): id, type, name, street, "desc", provider_name, contact_info, x, y, updated_at
+     *    - 人才資產庫表 (`tkt_talents`): id, role_type ('individual'|'organization'), name, gender, age, phone, website, category, asset_title, asset_desc, updated_at
      * ============================================================================
      */
     const ENV_OVERRIDE = window.__ENV__ || {};
     const SUPABASE_CONFIG = {
       url: ENV_OVERRIDE.SUPABASE_URL || '',          // <-- [AI_SLOT_URL]: 請填入 'https://xxxx.supabase.co'
       anonKey: ENV_OVERRIDE.SUPABASE_ANON_KEY || '', // <-- [AI_SLOT_KEY]: 請填入 'eyJhbGciOiJIUzI1Ni...'
-      tableName: ENV_OVERRIDE.SUPABASE_TABLE || 'tkt_assets'
+      assetsTable: ENV_OVERRIDE.SUPABASE_ASSETS_TABLE || 'tkt_assets',
+      talentsTable: ENV_OVERRIDE.SUPABASE_TALENTS_TABLE || 'tkt_talents'
     };
     /** ======================= [END_AI_INTEGRATION_SLOT] ======================= */
 
-    /**
-     * 標誌類型定義 (卡通圖標、顏色、名稱)
-     */
     const MARKER_TYPES = [
       { id: 'community', label: '社區中心', icon: '🏠', bg: '#ff9f43', badge: '社區服務' },
       { id: 'park',      label: '休憩公園', icon: '🌳', bg: '#2ecc71', badge: '公共空間' },
@@ -838,9 +1019,6 @@
       { id: 'transport', label: '交通站點', icon: '🚌', bg: '#48dbfb', badge: '交通接駁' }
     ];
 
-    /**
-     * 街道座標參考點，用於用戶點擊地圖時自動推算最接近的街道名稱
-     */
     const STREET_ANCHORS = [
       { name: '聚魚道', x: 750, y: 175 },
       { name: '福利街', x: 820, y: 325 },
@@ -886,9 +1064,7 @@
       { name: '港鐵奧運站 / 匯豐中心', x: 480, y: 1500 }
     ];
 
-    /**
-     * 預設的大角咀真實社區資源資料
-     */
+    // 預設地圖標誌資料
     const PRESET_ASSETS = [
       {
         id: 'preset-1',
@@ -896,6 +1072,8 @@
         name: '樂群街公園休憩處',
         street: '樂群街 / 福利街交界',
         desc: '區內綠樹成蔭的社區公園，設有長者健體設施、兒童遊樂場及涼亭，是街坊晨運與聚腳好去處。',
+        providerName: '康文署公共空間',
+        contactInfo: '',
         x: 765,
         y: 455
       },
@@ -905,6 +1083,8 @@
         name: '大角咀市政大樓及體育館',
         street: '福全街 63 號',
         desc: '集街市、熟食中心、公共圖書館、室內游泳池及體育館於一身的核心社區綜合大樓。',
+        providerName: '市政大樓社區設施',
+        contactInfo: '',
         x: 1420,
         y: 625
       },
@@ -914,6 +1094,8 @@
         name: '埃華街及大全街美食圈',
         street: '埃華街 / 大全街',
         desc: '大角咀最具代表性的地道食街，匯聚老字號茶餐廳、糖水舖及多國特色小店。',
+        providerName: '大角咀街坊食店聯盟',
+        contactInfo: '',
         x: 885,
         y: 995
       },
@@ -923,6 +1105,8 @@
         name: '港鐵奧運站公共運輸交匯處',
         street: '深旺道 / 海景街',
         desc: '連接東涌線及多條巴士、專線小巴路線，無障礙通道直達奧海城及大角咀各區。',
+        providerName: '公共運輸網絡',
+        contactInfo: '',
         x: 495,
         y: 1525
       },
@@ -932,6 +1116,8 @@
         name: '大角咀公共圖書館',
         street: '福全街 63 號 3 樓',
         desc: '提供報刊閱覽、兒童圖書角、自修室及社區文化推廣活動。',
+        providerName: '香港公共圖書館',
+        contactInfo: '',
         x: 1365,
         y: 585
       },
@@ -941,15 +1127,113 @@
         name: '洋松街環保回收站點',
         street: '洋松街 / 必發道交界',
         desc: '定時收集塑膠、廢紙、金屬及小型電器，鼓勵街坊實踐減廢回收。',
+        providerName: '綠色大角咀回收點',
+        contactInfo: '',
         x: 1510,
         y: 450
       }
     ];
 
-    const LOCAL_STORAGE_KEY = 'tkt_community_assets_v1';
+    // 預設人才資產庫資料（無固定地圖位置之個人技能與社區組織資源）
+    const PRESET_TALENTS = [
+      {
+        id: 'talent-1',
+        roleType: 'individual',
+        name: '明哥（退休電工師傅）',
+        gender: '男',
+        age: '64歲',
+        phone: '9412 8830',
+        website: '',
+        category: 'recycle',
+        assetTitle: '免費家居小電器及水喉簡單維修',
+        assetDesc: '逢星期三、六下午可為大角咀獨居長者或基層家庭上門檢查風扇、電飯煲及水龍頭滴水問題。'
+      },
+      {
+        id: 'talent-2',
+        roleType: 'organization',
+        name: '大角咀街坊互助社',
+        gender: '',
+        age: '',
+        phone: '2390 5512',
+        website: 'https://tkt-mutual-aid.example.org',
+        category: 'community',
+        assetTitle: '活動物資借用（摺枱、音響、帳篷）及義工配對',
+        assetDesc: '歡迎區內非牟利團體或街坊自發活動預約借用基本活動器材，共同舉辦社區共融聚會。'
+      },
+      {
+        id: 'talent-3',
+        roleType: 'individual',
+        name: '阿晴（平面設計師 & 插畫師）',
+        gender: '女',
+        age: '29歲',
+        phone: '6788 1204',
+        website: 'instagram.com/ching_tkt_art',
+        category: 'edu',
+        assetTitle: '社區活動海報設計 & 親子手繪工作坊',
+        assetDesc: '居住在樂群街一帶，樂意協助大角咀小店或社區小組設計活動宣傳單張，並可帶領兒童繪畫班。'
+      }
+    ];
+
+    const STORAGE_KEYS = {
+      assets: 'corner_cocreation_assets_v2',
+      talents: 'corner_cocreation_talents_v2',
+      profile: 'corner_cocreation_user_profile_v2'
+    };
+
     let assets = [...PRESET_ASSETS];
+    let talents = [...PRESET_TALENTS];
+    let currentUserProfile = null;
     let supabaseClient = null;
     let isCloudConnected = false;
+
+    // 應用程式狀態
+    const state = {
+      activeTab: 'map', // 'map' | 'talent'
+      scale: 0.78,
+      translateX: -380,
+      translateY: -260,
+      isDragging: false,
+      dragMoved: false,
+      startX: 0,
+      startY: 0,
+      activeStampType: null,
+      pendingUserRegistration: null, // 儲存剛填完登記表單、準備在地圖點選位置的用戶資產
+      selectedAssetId: null,
+      filterCategory: 'all',
+      searchQuery: '',
+      talentFilter: 'all',
+      talentSearch: '',
+      modalSelectedIcon: 'community',
+      regRoleType: 'individual'
+    };
+
+    // DOM 元素快取
+    const viewport = document.getElementById('map-viewport');
+    const world = document.getElementById('map-world');
+    const pinsContainer = document.getElementById('pins-container');
+    const stampPalette = document.getElementById('stamp-palette');
+    const placementBanner = document.getElementById('placement-banner');
+    const assetSidebar = document.getElementById('asset-sidebar');
+    const assetListContainer = document.getElementById('asset-list-container');
+    const categoryFilters = document.getElementById('category-filters');
+    const assetModal = document.getElementById('asset-modal');
+    const modalIconGrid = document.getElementById('modal-icon-grid');
+    const registerModal = document.getElementById('register-modal');
+
+    /**
+     * 更新頂部用戶登入徽章狀態
+     */
+    function updateUserBadgeUI() {
+      const iconEl = document.getElementById('user-badge-icon');
+      const textEl = document.getElementById('user-badge-text');
+      if (currentUserProfile) {
+        iconEl.textContent = currentUserProfile.roleType === 'organization' ? '🏢' : '🙋';
+        textEl.textContent = `${currentUserProfile.name} · 登記新資產`;
+      } else {
+        iconEl.textContent = '👤';
+        textEl.textContent = '登入 / 登記資產';
+      }
+    }
 
     /**
      * 更新分享視窗中的儲存狀態顯示
@@ -966,35 +1250,43 @@
         icon.textContent = '☁️';
         title.textContent = 'Supabase 雲端即時同步已連線';
         title.style.color = '#117864';
-        desc.textContent = '所有街坊打開 GitHub Pages 網址後，新增與修改的標誌皆會即時共享！';
+        desc.textContent = '地圖標誌與人才資產庫皆已連線至雲端，所有街坊即時共享！';
       } else {
         card.style.backgroundColor = '#fef9e7';
         icon.textContent = '💾';
-        title.textContent = '目前為本機瀏覽器儲存模式 (尚未填寫 Supabase 金鑰)';
+        title.textContent = '目前為本機瀏覽器儲存模式 (已預留 Supabase 接口)';
         title.style.color = '#b9770e';
-        desc.textContent = '資料會自動保存在您的瀏覽器中；填入 SUPABASE_CONFIG 後即可升級為多人雲端同步。';
+        desc.textContent = '資料會自動保存在瀏覽器中；填入 SUPABASE_CONFIG 後即可升級為多人雲端同步。';
       }
     }
 
     /**
-     * 初始化資料儲存層（優先連線 Supabase，未設定則自動降級為 localStorage）
+     * 初始化本地與雲端儲存層
      */
     async function initStorageSync() {
-      // 1. 先載入本機快取或預設資料，確保畫面零延遲顯示
       try {
-        const savedLocal = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (savedLocal) {
-          const parsed = JSON.parse(savedLocal);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            assets = parsed;
-          }
+        const savedAssets = localStorage.getItem(STORAGE_KEYS.assets);
+        if (savedAssets) {
+          const parsed = JSON.parse(savedAssets);
+          if (Array.isArray(parsed) && parsed.length > 0) assets = parsed;
+        }
+        const savedTalents = localStorage.getItem(STORAGE_KEYS.talents);
+        if (savedTalents) {
+          const parsed = JSON.parse(savedTalents);
+          if (Array.isArray(parsed) && parsed.length > 0) talents = parsed;
+        }
+        const savedProfile = localStorage.getItem(STORAGE_KEYS.profile);
+        if (savedProfile) {
+          currentUserProfile = JSON.parse(savedProfile);
+          updateUserBadgeUI();
         }
       } catch (e) {
         console.warn('讀取本機快取失敗:', e);
       }
-      renderAll();
 
-      // 2. 檢查是否已填入 Supabase 連線資訊
+      renderAll();
+      renderTalentLibrary();
+
       const hasConfig = SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabase;
       if (!hasConfig) {
         isCloudConnected = false;
@@ -1005,164 +1297,162 @@
       try {
         supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
 
-        // 讀取 Supabase 資料表
-        const { data, error } = await supabaseClient
-          .from(SUPABASE_CONFIG.tableName)
+        // 同步地圖資產
+        const { data: assetData, error: assetErr } = await supabaseClient
+          .from(SUPABASE_CONFIG.assetsTable)
           .select('*')
           .order('updated_at', { ascending: false });
-
-        if (error) throw error;
+        if (assetErr) throw assetErr;
 
         isCloudConnected = true;
         updateSyncStatusUI();
 
-        if (!data || data.length === 0) {
-          // 若資料表是空的，自動寫入大角咀預設地標
-          const seedRows = PRESET_ASSETS.map(item => ({
-            id: item.id,
-            type: item.type,
-            name: item.name,
-            street: item.street,
-            desc: item.desc,
-            x: item.x,
-            y: item.y,
-            updated_at: Date.now()
+        if (assetData && assetData.length > 0) {
+          assets = assetData.map(row => ({
+            ...row,
+            providerName: row.provider_name || '',
+            contactInfo: row.contact_info || ''
           }));
-          await supabaseClient.from(SUPABASE_CONFIG.tableName).upsert(seedRows);
-          assets = [...PRESET_ASSETS];
-        } else {
-          assets = data;
         }
-        renderAll();
 
-        // 訂閱 Supabase Realtime 即時變動，讓所有街坊畫面自動更新
-        supabaseClient
-          .channel('public:' + SUPABASE_CONFIG.tableName)
-          .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: SUPABASE_CONFIG.tableName },
-            async () => {
-              const { data: latestData } = await supabaseClient
-                .from(SUPABASE_CONFIG.tableName)
-                .select('*')
-                .order('updated_at', { ascending: false });
-              if (latestData) {
-                assets = latestData;
-                renderAll();
-              }
-            }
-          )
-          .subscribe();
+        // 同步人才資產庫
+        const { data: talentData, error: talentErr } = await supabaseClient
+          .from(SUPABASE_CONFIG.talentsTable)
+          .select('*')
+          .order('updated_at', { ascending: false });
+        if (!talentErr && talentData && talentData.length > 0) {
+          talents = talentData.map(row => ({
+            id: row.id,
+            roleType: row.role_type,
+            name: row.name,
+            gender: row.gender || '',
+            age: row.age || '',
+            phone: row.phone || '',
+            website: row.website || '',
+            category: row.category || 'community',
+            assetTitle: row.asset_title,
+            assetDesc: row.asset_desc || ''
+          }));
+        }
+
+        renderAll();
+        renderTalentLibrary();
       } catch (err) {
-        console.error('Supabase 連線失敗，已切換回本機儲存模式:', err);
+        console.error('Supabase 連線失敗，維持本機儲存模式:', err);
         isCloudConnected = false;
         updateSyncStatusUI();
-        showToast('⚠️ Supabase 連線異常，暫時使用本機儲存');
       }
     }
 
     /**
-     * 儲存或更新單筆標誌（同步寫入 Supabase 與 localStorage）
+     * 儲存地圖標誌
      */
     async function saveAsset(assetObj) {
-      // 同步備份至本機 localStorage
       try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(assets));
-      } catch (e) {
-        console.warn('本機儲存空間不足:', e);
-      }
+        localStorage.setItem(STORAGE_KEYS.assets, JSON.stringify(assets));
+      } catch (e) {}
 
       if (!isCloudConnected || !supabaseClient) return;
-
       try {
-        const { error } = await supabaseClient
-          .from(SUPABASE_CONFIG.tableName)
-          .upsert({
-            id: assetObj.id,
-            type: assetObj.type,
-            name: assetObj.name,
-            street: assetObj.street,
-            desc: assetObj.desc,
-            x: assetObj.x,
-            y: assetObj.y,
-            updated_at: Date.now()
-          });
-        if (error) throw error;
+        await supabaseClient.from(SUPABASE_CONFIG.assetsTable).upsert({
+          id: assetObj.id,
+          type: assetObj.type,
+          name: assetObj.name,
+          street: assetObj.street,
+          desc: assetObj.desc,
+          provider_name: assetObj.providerName || '',
+          contact_info: assetObj.contactInfo || '',
+          x: assetObj.x,
+          y: assetObj.y,
+          updated_at: Date.now()
+        });
       } catch (err) {
-        console.error('Supabase 寫入失敗:', err);
-        showToast('⚠️ 雲端同步失敗，已先儲存於本機');
+        console.error('Supabase 寫入地圖資產失敗:', err);
       }
     }
 
     /**
-     * 刪除單筆標誌（同步從 Supabase 與 localStorage 移除）
+     * 刪除地圖標誌
      */
     async function deleteAsset(assetId) {
       try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(assets));
-      } catch (e) {
-        console.warn('本機儲存更新失敗:', e);
-      }
+        localStorage.setItem(STORAGE_KEYS.assets, JSON.stringify(assets));
+      } catch (e) {}
 
       if (!isCloudConnected || !supabaseClient) return;
-
       try {
-        const { error } = await supabaseClient
-          .from(SUPABASE_CONFIG.tableName)
-          .delete()
-          .eq('id', assetId);
-        if (error) throw error;
+        await supabaseClient.from(SUPABASE_CONFIG.assetsTable).delete().eq('id', assetId);
       } catch (err) {
         console.error('Supabase 刪除失敗:', err);
-        showToast('⚠️ 雲端刪除失敗，請稍後再試');
       }
     }
 
-    // 應用程式狀態
-    const state = {
-      scale: 0.78,
-      translateX: -380,
-      translateY: -260,
-      isDragging: false,
-      dragMoved: false,
-      startX: 0,
-      startY: 0,
-      activeStampType: null, // 若不為 null，代表正在準備放置該類型標誌
-      selectedAssetId: null,
-      filterCategory: 'all',
-      searchQuery: '',
-      modalSelectedIcon: 'community'
-    };
+    /**
+     * 儲存人才資產庫項目
+     */
+    async function saveTalent(talentObj) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.talents, JSON.stringify(talents));
+      } catch (e) {}
 
-    // DOM 元素快取
-    const viewport = document.getElementById('map-viewport');
-    const world = document.getElementById('map-world');
-    const pinsContainer = document.getElementById('pins-container');
-    const stampPalette = document.getElementById('stamp-palette');
-    const placementBanner = document.getElementById('placement-banner');
-    const assetSidebar = document.getElementById('asset-sidebar');
-    const assetListContainer = document.getElementById('asset-list-container');
-    const categoryFilters = document.getElementById('category-filters');
-    const assetModal = document.getElementById('asset-modal');
-    const modalIconGrid = document.getElementById('modal-icon-grid');
+      if (!isCloudConnected || !supabaseClient) return;
+      try {
+        await supabaseClient.from(SUPABASE_CONFIG.talentsTable).upsert({
+          id: talentObj.id,
+          role_type: talentObj.roleType,
+          name: talentObj.name,
+          gender: talentObj.gender || '',
+          age: talentObj.age || '',
+          phone: talentObj.phone || '',
+          website: talentObj.website || '',
+          category: talentObj.category || 'community',
+          asset_title: talentObj.assetTitle,
+          asset_desc: talentObj.assetDesc || '',
+          updated_at: Date.now()
+        });
+      } catch (err) {
+        console.error('Supabase 寫入人才庫失敗:', err);
+      }
+    }
 
     /**
      * 初始化應用程式
      */
     function init() {
-      // 根據螢幕尺寸調整初始置中位置 (聚焦在大角咀中心區)
       centerMapOn(980, 880, window.innerWidth < 640 ? 0.58 : 0.82);
       renderStampPalette();
       renderCategoryFilters();
       renderModalIconGrid();
       renderAll();
+      renderTalentLibrary();
       bindEvents();
       initStorageSync();
     }
 
     /**
-     * 將地圖視角置中於特定世界座標 (wx, wy)
+     * 切換主視圖分頁（地圖 vs 人才資產庫）
      */
+    function switchMainTab(tabName) {
+      state.activeTab = tabName;
+      const mapView = document.getElementById('map-view-container');
+      const talentView = document.getElementById('talent-view-container');
+      const navMapBtn = document.getElementById('nav-map-btn');
+      const navTalentBtn = document.getElementById('nav-talent-btn');
+
+      if (tabName === 'map') {
+        mapView.classList.remove('hidden');
+        talentView.classList.add('hidden');
+        navMapBtn.className = 'px-2.5 py-1 rounded-xl text-xs sm:text-sm font-black bg-[#2d3436] text-white transition-all flex items-center gap-1';
+        navTalentBtn.className = 'px-2.5 py-1 rounded-xl text-xs sm:text-sm font-black text-[#2d3436] hover:bg-[#ffde59] transition-all flex items-center gap-1';
+      } else {
+        mapView.classList.add('hidden');
+        talentView.classList.remove('hidden');
+        navTalentBtn.className = 'px-2.5 py-1 rounded-xl text-xs sm:text-sm font-black bg-[#2d3436] text-white transition-all flex items-center gap-1';
+        navMapBtn.className = 'px-2.5 py-1 rounded-xl text-xs sm:text-sm font-black text-[#2d3436] hover:bg-[#ffde59] transition-all flex items-center gap-1';
+        renderTalentLibrary();
+      }
+    }
+
     function centerMapOn(wx, wy, targetScale = state.scale) {
       const rect = viewport.getBoundingClientRect();
       state.scale = Math.min(Math.max(targetScale, 0.35), 2.0);
@@ -1171,16 +1461,10 @@
       applyTransform();
     }
 
-    /**
-     * 套用地圖位移與縮放
-     */
     function applyTransform() {
       world.style.transform = `translate(${state.translateX}px, ${state.translateY}px) scale(${state.scale})`;
     }
 
-    /**
-     * 根據世界座標尋找最近的街道名稱
-     */
     function detectNearestStreet(wx, wy) {
       let closest = STREET_ANCHORS[0];
       let minDist = Infinity;
@@ -1194,9 +1478,6 @@
       return minDist < 260 ? `${closest.name}附近` : '大角咀社區範圍';
     }
 
-    /**
-     * 顯示短暫提示訊息
-     */
     let toastTimer = null;
     function showToast(msg) {
       const toast = document.getElementById('toast-msg');
@@ -1205,15 +1486,12 @@
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => {
         toast.classList.add('hidden');
-      }, 2400);
+      }, 2800);
     }
 
-    /**
-     * 渲染底部印章工具列
-     */
     function renderStampPalette() {
       stampPalette.innerHTML = MARKER_TYPES.map(t => {
-        const isActive = state.activeStampType === t.id;
+        const isActive = state.activeStampType === t.id && !state.pendingUserRegistration;
         return `
           <button 
             type="button"
@@ -1231,27 +1509,39 @@
     }
 
     /**
-     * 切換印章放置模式
+     * 切換印章放置模式（支援一般印章與用戶登記後的地點標誌）
      */
-    function setPlacementMode(typeId) {
-      if (state.activeStampType === typeId || !typeId) {
+    function setPlacementMode(typeId, pendingRegData = null) {
+      const fallbackBtn = document.getElementById('fallback-to-talent-btn');
+
+      if ((!typeId && !pendingRegData) || (state.activeStampType === typeId && !pendingRegData && !state.pendingUserRegistration)) {
         state.activeStampType = null;
+        state.pendingUserRegistration = null;
         viewport.classList.remove('placing-mode');
         placementBanner.classList.add('hidden');
+        fallbackBtn.classList.add('hidden');
+      } else if (pendingRegData) {
+        state.pendingUserRegistration = pendingRegData;
+        state.activeStampType = pendingRegData.category || 'community';
+        const typeObj = MARKER_TYPES.find(t => t.id === state.activeStampType) || MARKER_TYPES[0];
+        viewport.classList.add('placing-mode');
+        document.getElementById('placement-banner-icon').textContent = typeObj.icon;
+        document.getElementById('placement-banner-text').textContent = `請點擊地圖標誌「${pendingRegData.assetTitle}」的地點`;
+        fallbackBtn.classList.remove('hidden');
+        placementBanner.classList.remove('hidden');
       } else {
+        state.pendingUserRegistration = null;
         state.activeStampType = typeId;
         const typeObj = MARKER_TYPES.find(t => t.id === typeId);
         viewport.classList.add('placing-mode');
         document.getElementById('placement-banner-icon').textContent = typeObj.icon;
         document.getElementById('placement-banner-text').textContent = `點擊地圖放置「${typeObj.label}」標誌`;
+        fallbackBtn.classList.add('hidden');
         placementBanner.classList.remove('hidden');
       }
       renderStampPalette();
     }
 
-    /**
-     * 渲染彈窗內的圖標選擇器
-     */
     function renderModalIconGrid() {
       modalIconGrid.innerHTML = MARKER_TYPES.map(t => {
         const selected = state.modalSelectedIcon === t.id;
@@ -1271,12 +1561,9 @@
       }).join('');
     }
 
-    /**
-     * 渲染側邊欄分類篩選按鈕
-     */
     function renderCategoryFilters() {
       const allBtn = `
-        <button data-filter="all" class="filter-btn shrink-0 px-2.5 py-1 rounded-lg border-2 border-[#2d3436] text-xs font-black ${
+        <button type="button" data-filter="all" class="filter-btn shrink-0 px-2.5 py-1 rounded-lg border-2 border-[#2d3436] text-xs font-black ${
           state.filterCategory === 'all' ? 'bg-[#ffde59]' : 'bg-white'
         }">
           全部 (${assets.length})
@@ -1285,7 +1572,7 @@
       const typeBtns = MARKER_TYPES.map(t => {
         const count = assets.filter(a => a.type === t.id).length;
         return `
-          <button data-filter="${t.id}" class="filter-btn shrink-0 px-2.5 py-1 rounded-lg border-2 border-[#2d3436] text-xs font-black flex items-center gap-1 ${
+          <button type="button" data-filter="${t.id}" class="filter-btn shrink-0 px-2.5 py-1 rounded-lg border-2 border-[#2d3436] text-xs font-black flex items-center gap-1 ${
             state.filterCategory === t.id ? 'bg-[#ffde59]' : 'bg-white'
           }">
             <span>${t.icon}</span>
@@ -1297,9 +1584,6 @@
       categoryFilters.innerHTML = allBtn + typeBtns;
     }
 
-    /**
-     * 篩選符合條件的資源
-     */
     function getFilteredAssets() {
       return assets.filter(item => {
         const matchCat = state.filterCategory === 'all' || item.type === state.filterCategory;
@@ -1307,19 +1591,20 @@
         const matchQuery = !q || 
           item.name.toLowerCase().includes(q) || 
           item.street.toLowerCase().includes(q) || 
-          item.desc.toLowerCase().includes(q);
+          (item.desc && item.desc.toLowerCase().includes(q)) ||
+          (item.providerName && item.providerName.toLowerCase().includes(q));
         return matchCat && matchQuery;
       });
     }
 
     /**
-     * 渲染地圖上的所有卡通標誌與側邊清單
+     * 渲染地圖標誌與右側清單
      */
     function renderAll() {
       const filtered = getFilteredAssets();
       document.getElementById('asset-count-badge').textContent = assets.length;
+      document.getElementById('talent-count-badge').textContent = talents.length;
 
-      // 1. 渲染地圖上的圖釘
       pinsContainer.innerHTML = filtered.map(asset => {
         const typeObj = MARKER_TYPES.find(t => t.id === asset.type) || MARKER_TYPES[0];
         const isSelected = state.selectedAssetId === asset.id;
@@ -1330,30 +1615,26 @@
             style="left: ${asset.x}px; top: ${asset.y}px;"
           >
             <div class="flex flex-col items-center group">
-              <!-- 名稱氣泡標籤 -->
-              <div class="mb-1 px-2.5 py-0.5 rounded-full bg-white border-2 border-[#2d3436] shadow-[2px_2px_0px_#2d3436] text-xs font-black text-[#2d3436] whitespace-nowrap max-w-[160px] truncate">
+              <div class="mb-1 px-2.5 py-0.5 rounded-full bg-white border-2 border-[#2d3436] shadow-[2px_2px_0px_#2d3436] text-xs font-black text-[#2d3436] whitespace-nowrap max-w-[170px] truncate">
                 ${asset.name}
               </div>
-              <!-- 卡通水滴圖標 -->
               <div 
                 class="w-11 h-11 rounded-2xl border-[3px] border-[#2d3436] shadow-[3px_3px_0px_#2d3436] flex items-center justify-center text-2xl relative"
                 style="background-color: ${typeObj.bg};"
               >
                 <span>${typeObj.icon}</span>
               </div>
-              <!-- 底部小三角指標 -->
               <div class="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-t-[9px] border-t-[#2d3436] -mt-[1px]"></div>
             </div>
           </div>
         `;
       }).join('');
 
-      // 2. 渲染側邊欄列表
       if (filtered.length === 0) {
         assetListContainer.innerHTML = `
           <div class="text-center py-10 px-4 bg-white rounded-2xl border-2 border-dashed border-[#2d3436]">
             <div class="text-3xl mb-2">🗺️</div>
-            <p class="text-sm font-black text-[#2d3436]">找不到相符的社區資源</p>
+            <p class="text-sm font-black text-[#2d3436]">找不到相符的地圖資源</p>
             <p class="text-xs font-bold text-gray-500 mt-1">試試清除搜尋關鍵字，或點擊地圖新增標誌！</p>
           </div>
         `;
@@ -1394,6 +1675,7 @@
               <p class="text-xs font-bold text-[#e17055] mt-2 flex items-center gap-1">
                 <span>📍</span><span>${asset.street}</span>
               </p>
+              ${asset.providerName ? `<p class="text-[11px] font-black text-[#117864] mt-1">🤝 提供者：${asset.providerName} ${asset.contactInfo ? `(${asset.contactInfo})` : ''}</p>` : ''}
               ${asset.desc ? `<p class="text-xs font-medium text-gray-600 mt-1 leading-relaxed">${asset.desc}</p>` : ''}
             </div>
           `;
@@ -1404,7 +1686,143 @@
     }
 
     /**
-     * 開啟新增或編輯標誌彈窗
+     * 渲染「人才資產庫」頁面卡片
+     */
+    function renderTalentLibrary() {
+      document.getElementById('talent-count-badge').textContent = talents.length;
+      const grid = document.getElementById('talent-grid');
+      if (!grid) return;
+
+      const q = state.talentSearch.trim().toLowerCase();
+      const filteredTalents = talents.filter(t => {
+        const matchRole = state.talentFilter === 'all' || t.roleType === state.talentFilter;
+        const matchQuery = !q ||
+          t.name.toLowerCase().includes(q) ||
+          t.assetTitle.toLowerCase().includes(q) ||
+          (t.assetDesc && t.assetDesc.toLowerCase().includes(q));
+        return matchRole && matchQuery;
+      });
+
+      if (filteredTalents.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full text-center py-12 px-4 bg-white rounded-3xl comic-box-sm">
+            <div class="text-4xl mb-2">🌟</div>
+            <p class="text-base font-black text-[#2d3436]">暫無符合條件的人才或組織資產</p>
+            <p class="text-xs font-bold text-gray-500 mt-1">歡迎點擊上方「登記我的技能 / 組織資產」成為首位大角咀共創夥伴！</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filteredTalents.map(t => {
+        const isOrg = t.roleType === 'organization';
+        const typeObj = MARKER_TYPES.find(m => m.id === t.category) || MARKER_TYPES[0];
+        const metaTags = [];
+        if (!isOrg && t.gender && t.gender !== '不透露') metaTags.push(t.gender);
+        if (!isOrg && t.age) metaTags.push(t.age);
+
+        const cleanUrl = t.website
+          ? (t.website.startsWith('http://') || t.website.startsWith('https://') ? t.website : 'https://' + t.website)
+          : '';
+
+        return `
+          <article class="bg-white rounded-3xl comic-box p-5 flex flex-col justify-between gap-4 hover:-translate-y-0.5 transition-transform">
+            <div class="space-y-3">
+              <!-- 頂部身份徽章與領域標籤 -->
+              <div class="flex items-center justify-between gap-2">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border-2 border-[#2d3436] text-xs font-black ${
+                  isOrg ? 'bg-[#aed6f1]' : 'bg-[#ffde59]'
+                }">
+                  <span>${isOrg ? '🏢 社區組織' : '🙋 個人街坊'}</span>
+                  ${metaTags.length ? `<span class="text-[11px] opacity-80">· ${metaTags.join(' / ')}</span>` : ''}
+                </span>
+
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-[#2d3436] text-[11px] font-black" style="background-color: ${typeObj.bg};">
+                  <span>${typeObj.icon}</span>
+                  <span>${typeObj.badge}</span>
+                </span>
+              </div>
+
+              <!-- 共創者名稱與可提供資產標題 -->
+              <div>
+                <p class="text-xs font-black text-gray-500">${t.name}</p>
+                <h3 class="text-base sm:text-lg font-black text-[#2d3436] leading-snug mt-0.5">
+                  ${t.assetTitle}
+                </h3>
+              </div>
+
+              <!-- 詳細描述 -->
+              ${t.assetDesc ? `<p class="text-xs font-medium text-gray-600 leading-relaxed bg-[#fef9e7] p-3 rounded-2xl border border-[#2d3436]/20">${t.assetDesc}</p>` : ''}
+            </div>
+
+            <!-- 底部聯絡資訊（電話 & 網站） -->
+            <div class="pt-3 border-t-2 border-dashed border-gray-200 flex flex-wrap items-center gap-2 text-xs font-black">
+              ${t.phone ? `
+                <a href="tel:${t.phone.replace(/\s+/g, '')}" class="inline-flex items-center gap-1 bg-[#e8f8f5] hover:bg-[#d1f2eb] text-[#117864] px-3 py-1.5 rounded-xl border-2 border-[#2d3436]">
+                  <span>📞</span>
+                  <span>${t.phone}</span>
+                </a>
+              ` : ''}
+              ${cleanUrl ? `
+                <a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 bg-[#fef9e7] hover:bg-[#ffde59] text-[#2d3436] px-3 py-1.5 rounded-xl border-2 border-[#2d3436] max-w-[190px] truncate">
+                  <span>🌐</span>
+                  <span class="truncate">網站 / 專頁</span>
+                </a>
+              ` : ''}
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    /**
+     * 切換登記彈窗內的「個人 / 組織」身份樣式
+     */
+    function setRegisterRole(roleType) {
+      state.regRoleType = roleType;
+      const indBtn = document.getElementById('role-individual-btn');
+      const orgBtn = document.getElementById('role-org-btn');
+      const extraFields = document.getElementById('individual-extra-fields');
+      const nameLabel = document.getElementById('reg-name-label');
+      const nameInput = document.getElementById('reg-name');
+
+      if (roleType === 'individual') {
+        indBtn.className = 'role-select-btn p-3 rounded-2xl border-[2.5px] border-[#2d3436] bg-[#ffde59] shadow-[3px_3px_0px_#2d3436] flex items-center gap-2.5 text-left transition-all';
+        orgBtn.className = 'role-select-btn p-3 rounded-2xl border-[2.5px] border-[#2d3436] bg-white opacity-80 hover:opacity-100 flex items-center gap-2.5 text-left transition-all';
+        extraFields.classList.remove('hidden');
+        nameLabel.textContent = '第二步：您的姓名 / 稱呼 *';
+        nameInput.placeholder = '例如：陳大文 / 街坊阿玲';
+      } else {
+        orgBtn.className = 'role-select-btn p-3 rounded-2xl border-[2.5px] border-[#2d3436] bg-[#aed6f1] shadow-[3px_3px_0px_#2d3436] flex items-center gap-2.5 text-left transition-all';
+        indBtn.className = 'role-select-btn p-3 rounded-2xl border-[2.5px] border-[#2d3436] bg-white opacity-80 hover:opacity-100 flex items-center gap-2.5 text-left transition-all';
+        extraFields.classList.add('hidden');
+        nameLabel.textContent = '第二步：組織 / 團體 / 商戶名稱 *';
+        nameInput.placeholder = '例如：大角咀社區客廳 / 埃華街友善士多';
+      }
+    }
+
+    /**
+     * 開啟用戶登入與登記資產彈窗
+     */
+    function openRegisterModal() {
+      // 若已有登入基本資料，自動預填姓名、聯絡方式
+      if (currentUserProfile) {
+        setRegisterRole(currentUserProfile.roleType || 'individual');
+        document.getElementById('reg-name').value = currentUserProfile.name || '';
+        document.getElementById('reg-gender').value = currentUserProfile.gender || '不透露';
+        document.getElementById('reg-age').value = currentUserProfile.age || '';
+        document.getElementById('reg-phone').value = currentUserProfile.phone || '';
+        document.getElementById('reg-website').value = currentUserProfile.website || '';
+      } else {
+        setRegisterRole('individual');
+      }
+      document.getElementById('reg-asset-title').value = '';
+      document.getElementById('reg-asset-desc').value = '';
+      registerModal.classList.remove('hidden');
+    }
+
+    /**
+     * 開啟新增或編輯地圖標誌彈窗
      */
     function openAssetModal({ mode, asset = null, wx = 980, wy = 880, defaultType = 'community' }) {
       const form = document.getElementById('asset-form');
@@ -1417,7 +1835,9 @@
         document.getElementById('form-y').value = asset.y;
         document.getElementById('form-name').value = asset.name;
         document.getElementById('form-street').value = asset.street;
-        document.getElementById('form-desc').value = asset.desc;
+        document.getElementById('form-desc').value = asset.desc || '';
+        document.getElementById('form-provider').value = asset.providerName || '';
+        document.getElementById('form-contact').value = asset.contactInfo || '';
         document.getElementById('delete-asset-btn').classList.remove('hidden');
         state.modalSelectedIcon = asset.type;
       } else {
@@ -1426,6 +1846,10 @@
         document.getElementById('form-x').value = Math.round(wx);
         document.getElementById('form-y').value = Math.round(wy);
         document.getElementById('form-street').value = detectNearestStreet(wx, wy);
+        if (currentUserProfile) {
+          document.getElementById('form-provider').value = currentUserProfile.name || '';
+          document.getElementById('form-contact').value = currentUserProfile.phone || currentUserProfile.website || '';
+        }
         document.getElementById('delete-asset-btn').classList.add('hidden');
         state.modalSelectedIcon = defaultType;
       }
@@ -1435,16 +1859,10 @@
       setTimeout(() => document.getElementById('form-name').focus(), 60);
     }
 
-    /**
-     * 關閉彈窗
-     */
     function closeAssetModal() {
       assetModal.classList.add('hidden');
     }
 
-    /**
-     * 將螢幕點擊座標轉換為地圖世界座標
-     */
     function screenToWorld(clientX, clientY) {
       const rect = viewport.getBoundingClientRect();
       const wx = (clientX - rect.left - state.translateX) / state.scale;
@@ -1456,10 +1874,128 @@
     }
 
     /**
-     * 綁定所有互動事件 (滑鼠、觸控、按鈕、表單)
+     * 綁定所有互動事件
      */
     function bindEvents() {
-      // 1. 地圖拖曳平移 (Pointer Events 同時支援滑鼠與觸控)
+      // 主分頁切換（地圖 vs 人才資產庫）
+      document.getElementById('nav-map-btn').addEventListener('click', () => switchMainTab('map'));
+      document.getElementById('nav-talent-btn').addEventListener('click', () => switchMainTab('talent'));
+
+      // 開啟登記彈窗按鈕
+      document.getElementById('open-register-btn').addEventListener('click', openRegisterModal);
+      document.getElementById('talent-page-register-btn').addEventListener('click', openRegisterModal);
+      document.getElementById('close-register-modal-btn').addEventListener('click', () => {
+        registerModal.classList.add('hidden');
+      });
+
+      // 身份切換（個人 / 組織）
+      document.getElementById('role-individual-btn').addEventListener('click', () => setRegisterRole('individual'));
+      document.getElementById('role-org-btn').addEventListener('click', () => setRegisterRole('organization'));
+
+      // 追蹤用戶在登記表單點擊了哪一個發佈按鈕（「標誌地圖地點」或「加入人才資產庫」）
+      let chosenRegSubmitTarget = 'map';
+      document.querySelectorAll('.submit-reg-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          chosenRegSubmitTarget = btn.dataset.submitTarget;
+        });
+      });
+
+      // 提交用戶登入與資產登記表單
+      document.getElementById('register-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const roleType = state.regRoleType;
+        const name = document.getElementById('reg-name').value.trim();
+        const gender = roleType === 'individual' ? document.getElementById('reg-gender').value : '';
+        const age = roleType === 'individual' ? document.getElementById('reg-age').value.trim() : '';
+        const phone = document.getElementById('reg-phone').value.trim();
+        const website = document.getElementById('reg-website').value.trim();
+        const category = document.getElementById('reg-category').value;
+        const assetTitle = document.getElementById('reg-asset-title').value.trim();
+        const assetDesc = document.getElementById('reg-asset-desc').value.trim();
+
+        if (!name || !assetTitle) return;
+
+        // 保存用戶基本資料作為登入狀態
+        currentUserProfile = { roleType, name, gender, age, phone, website };
+        try {
+          localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(currentUserProfile));
+        } catch (err) {}
+        updateUserBadgeUI();
+
+        registerModal.classList.add('hidden');
+
+        if (chosenRegSubmitTarget === 'map') {
+          // 切換至地圖並進入「點選地點放置標誌」模式
+          switchMainTab('map');
+          setPlacementMode(category, {
+            roleType,
+            name,
+            gender,
+            age,
+            phone,
+            website,
+            category,
+            assetTitle,
+            assetDesc
+          });
+          showToast(`👋 歡迎 ${name}！請在地圖上點擊「${assetTitle}」的位置`);
+        } else {
+          // 直接加入「人才資產庫」並切換至該頁面
+          const newTalent = {
+            id: 'talent-' + Date.now(),
+            roleType,
+            name,
+            gender,
+            age,
+            phone,
+            website,
+            category,
+            assetTitle,
+            assetDesc
+          };
+          talents.unshift(newTalent);
+          switchMainTab('talent');
+          renderTalentLibrary();
+          showToast(`🌟 已將「${assetTitle}」加入人才資產庫！`);
+          await saveTalent(newTalent);
+        }
+      });
+
+      // 若用戶在放置地圖模式中改為「改存至人才庫」
+      document.getElementById('fallback-to-talent-btn').addEventListener('click', async () => {
+        const pending = state.pendingUserRegistration;
+        if (!pending) return;
+        setPlacementMode(null);
+        const newTalent = {
+          id: 'talent-' + Date.now(),
+          ...pending
+        };
+        talents.unshift(newTalent);
+        switchMainTab('talent');
+        renderTalentLibrary();
+        showToast(`🌟 已將「${pending.assetTitle}」改存至人才資產庫！`);
+        await saveTalent(newTalent);
+      });
+
+      // 人才資產庫頁面篩選與搜尋
+      document.getElementById('talent-filter-group').addEventListener('click', (e) => {
+        const btn = e.target.closest('.talent-filter-btn');
+        if (!btn) return;
+        state.talentFilter = btn.dataset.talentFilter;
+        document.querySelectorAll('.talent-filter-btn').forEach(b => {
+          b.className = b.dataset.talentFilter === state.talentFilter
+            ? 'talent-filter-btn px-3 py-1.5 rounded-xl border-2 border-[#2d3436] text-xs font-black bg-[#ffde59]'
+            : 'talent-filter-btn px-3 py-1.5 rounded-xl border-2 border-[#2d3436] text-xs font-black bg-white';
+        });
+        renderTalentLibrary();
+      });
+
+      document.getElementById('talent-search-input').addEventListener('input', (e) => {
+        state.talentSearch = e.target.value;
+        renderTalentLibrary();
+      });
+
+      // 地圖拖曳與雙指縮放
       let activePointers = new Map();
       let initialPinchDist = null;
       let initialScale = 1;
@@ -1485,7 +2021,6 @@
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
         if (activePointers.size === 2 && initialPinchDist) {
-          // 雙指縮放
           const pts = Array.from(activePointers.values());
           const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
           const midX = (pts[0].x + pts[1].x) / 2;
@@ -1503,41 +2038,66 @@
         } else if (state.isDragging && activePointers.size === 1) {
           const dx = e.clientX - state.startX - state.translateX;
           const dy = e.clientY - state.startY - state.translateY;
-          if (Math.hypot(dx, dy) > 4) {
-            state.dragMoved = true;
-          }
+          if (Math.hypot(dx, dy) > 4) state.dragMoved = true;
           state.translateX = e.clientX - state.startX;
           state.translateY = e.clientY - state.startY;
           applyTransform();
         }
       });
 
-      const handlePointerEnd = (e) => {
+      const handlePointerEnd = async (e) => {
         const wasSingleClick = activePointers.size === 1 && !state.dragMoved;
         activePointers.delete(e.pointerId);
         if (activePointers.size < 2) initialPinchDist = null;
         if (activePointers.size === 0) state.isDragging = false;
 
-        // 若處於印章放置模式，且為單擊（非拖曳），直接開啟新增視窗
-        if (wasSingleClick && state.activeStampType && !e.target.closest('.map-pin')) {
+        if (wasSingleClick && !e.target.closest('.map-pin')) {
           const { wx, wy } = screenToWorld(e.clientX, e.clientY);
-          const chosenType = state.activeStampType;
-          setPlacementMode(null);
-          openAssetModal({ mode: 'create', wx, wy, defaultType: chosenType });
+
+          // 情況 1：用戶剛填完登記表單，正在地圖上點選地點 -> 直接建立並顯示標誌
+          if (state.pendingUserRegistration) {
+            const reg = state.pendingUserRegistration;
+            setPlacementMode(null);
+            const newId = 'asset-' + Date.now();
+            const streetName = detectNearestStreet(wx, wy);
+            const contactStr = [reg.phone, reg.website].filter(Boolean).join(' | ');
+            const created = {
+              id: newId,
+              type: reg.category || 'community',
+              name: reg.assetTitle,
+              street: streetName,
+              desc: reg.assetDesc,
+              providerName: `${reg.name}（${reg.roleType === 'organization' ? '社區組織' : '個人街坊'}）`,
+              contactInfo: contactStr,
+              x: Math.round(wx),
+              y: Math.round(wy)
+            };
+            assets.unshift(created);
+            state.selectedAssetId = newId;
+            renderAll();
+            showToast(`📍 已成功在地圖「${streetName}」標誌「${reg.assetTitle}」！`);
+            await saveAsset(created);
+            return;
+          }
+
+          // 情況 2：一般印章放置模式
+          if (state.activeStampType) {
+            const chosenType = state.activeStampType;
+            setPlacementMode(null);
+            openAssetModal({ mode: 'create', wx, wy, defaultType: chosenType });
+          }
         }
       };
 
       viewport.addEventListener('pointerup', handlePointerEnd);
       viewport.addEventListener('pointercancel', handlePointerEnd);
 
-      // 雙擊地圖任意位置亦可新增標誌
       viewport.addEventListener('dblclick', (e) => {
         if (e.target.closest('.map-pin') || e.target.closest('button')) return;
         const { wx, wy } = screenToWorld(e.clientX, e.clientY);
         openAssetModal({ mode: 'create', wx, wy, defaultType: 'community' });
       });
 
-      // 滾輪縮放 (以滑鼠游標為中心)
       viewport.addEventListener('wheel', (e) => {
         e.preventDefault();
         const zoomFactor = e.deltaY < 0 ? 1.12 : 0.89;
@@ -1552,7 +2112,6 @@
         applyTransform();
       }, { passive: false });
 
-      // 2. 印章工具列點擊
       stampPalette.addEventListener('click', (e) => {
         const btn = e.target.closest('.stamp-btn');
         if (!btn) return;
@@ -1563,7 +2122,6 @@
         setPlacementMode(null);
       });
 
-      // 3. 點擊地圖上的圖釘 -> 編輯/查看該資源
       pinsContainer.addEventListener('click', (e) => {
         const pin = e.target.closest('.map-pin');
         if (!pin) return;
@@ -1576,7 +2134,6 @@
         }
       });
 
-      // 4. 縮放與快捷跳轉按鈕
       document.getElementById('zoom-in-btn').addEventListener('click', () => {
         const rect = viewport.getBoundingClientRect();
         const cx = (rect.width / 2 - state.translateX) / state.scale;
@@ -1603,13 +2160,15 @@
         });
       });
 
-      // 5. 搜尋框與側邊欄切換
       document.getElementById('search-input').addEventListener('input', (e) => {
         state.searchQuery = e.target.value;
+        state.talentSearch = e.target.value;
         renderAll();
+        renderTalentLibrary();
       });
 
       document.getElementById('toggle-list-btn').addEventListener('click', () => {
+        switchMainTab('map');
         assetSidebar.classList.toggle('hidden');
         assetSidebar.classList.toggle('flex');
       });
@@ -1641,13 +2200,11 @@
         if (editBtn) {
           openAssetModal({ mode: 'edit', asset });
         } else if (window.innerWidth < 640) {
-          // 手機版點擊卡片自動收起側邊欄並飛向該地標
           assetSidebar.classList.add('hidden');
           assetSidebar.classList.remove('flex');
         }
       });
 
-      // 6. 彈窗內互動與表單儲存/刪除
       modalIconGrid.addEventListener('click', (e) => {
         const opt = e.target.closest('.modal-icon-option');
         if (!opt) return;
@@ -1658,7 +2215,7 @@
       document.getElementById('close-modal-btn').addEventListener('click', closeAssetModal);
       document.getElementById('cancel-modal-btn').addEventListener('click', closeAssetModal);
 
-      // 分享網址彈窗與複製按鈕
+      // 分享網址彈窗
       const shareModal = document.getElementById('share-modal');
       const displayShareUrl = document.getElementById('display-share-url');
       document.getElementById('share-map-btn').addEventListener('click', () => {
@@ -1673,34 +2230,35 @@
         displayShareUrl.select();
         displayShareUrl.setSelectionRange(0, 99999);
         document.execCommand('copy');
-        showToast('🔗 已複製地圖網址，快分享給大角咀街坊！');
+        showToast('🔗 已複製「角落共創 · 社區地圖」網址！');
       });
 
+      // 地圖標誌新增 / 編輯儲存
       document.getElementById('asset-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('form-asset-id').value;
         const name = document.getElementById('form-name').value.trim();
         const street = document.getElementById('form-street').value.trim() || '大角咀社區';
         const desc = document.getElementById('form-desc').value.trim();
+        const providerName = document.getElementById('form-provider').value.trim();
+        const contactInfo = document.getElementById('form-contact').value.trim();
         const x = Number(document.getElementById('form-x').value);
         const y = Number(document.getElementById('form-y').value);
 
         if (!name) return;
 
         if (id) {
-          // 更新現有資產
           const idx = assets.findIndex(a => a.id === id);
           if (idx !== -1) {
-            const updated = { ...assets[idx], type: state.modalSelectedIcon, name, street, desc };
+            const updated = { ...assets[idx], type: state.modalSelectedIcon, name, street, desc, providerName, contactInfo };
             assets[idx] = updated;
             state.selectedAssetId = id;
             closeAssetModal();
             renderAll();
-            showToast(isCloudConnected ? `☁️ 已更新並同步「${name}」` : `💾 已更新「${name}」`);
+            showToast(`💾 已更新「${name}」`);
             await saveAsset(updated);
           }
         } else {
-          // 新增資產
           const newId = 'asset-' + Date.now();
           const created = {
             id: newId,
@@ -1708,6 +2266,8 @@
             name,
             street,
             desc,
+            providerName,
+            contactInfo,
             x,
             y
           };
@@ -1715,7 +2275,7 @@
           state.selectedAssetId = newId;
           closeAssetModal();
           renderAll();
-          showToast(isCloudConnected ? `☁️ 已標記並同步「${name}」` : `💾 已儲存「${name}」`);
+          showToast(`📍 已標記「${name}」`);
           await saveAsset(created);
         }
       });
@@ -1736,7 +2296,6 @@
       });
     }
 
-    // 啟動應用
     window.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
